@@ -4,6 +4,15 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
+-- Forward-declare переменные, которые используются в разных секциях
+local flying = false
+local flyConn = nil
+local flyPoseConn = nil
+local flySpeed = 50
+local speedActive = false
+local walkSpeed = 16
+local speedMaintainConn = nil
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
 screenGui.ResetOnSpawn = false
@@ -757,11 +766,6 @@ flySpeedUp.Font = Enum.Font.SourceSansBold
 flySpeedUp.TextSize = 20
 flySpeedUp.Parent = flySpeedPanel
 
-local flying = false
-local flyConn = nil
-local flyPoseConn = nil
-local flySpeed = 50
-
 local function updateFlyLabel()
     flyBtn.Text = "Полёт [" .. flySpeed .. "]"
     flySpeedLabel.Text = "Скорость: " .. flySpeed
@@ -874,7 +878,7 @@ flyBtn.MouseButton1Click:Connect(function()
     else
         if flyConn then flyConn:Disconnect() flyConn = nil end
         if flyPoseConn then flyPoseConn:Disconnect() flyPoseConn = nil end
-        if speedActive and not flying then
+        if speedActive then
             humanoid.WalkSpeed = walkSpeed
         else
             humanoid.WalkSpeed = 16
@@ -928,8 +932,6 @@ speedUp.TextSize = 20
 speedUp.Parent = speedPanel
 
 local speedPanelVisible = false
-local walkSpeed = 16
-local speedActive = false
 
 local function updateSpeedLabel()
     speedBtn.Text = "Скорость [" .. walkSpeed .. "]"
@@ -973,7 +975,7 @@ speedBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local speedMaintainConn = RunService.Heartbeat:Connect(function()
+speedMaintainConn = RunService.Heartbeat:Connect(function()
     if speedActive and not flying then
         local humanoid = getHumanoid(LocalPlayer)
         if humanoid then
@@ -1113,7 +1115,6 @@ local function createNukeRemote()
     tool.RequiresHandle = true
     tool.ToolTip = "Нажми ЛКМ — запустить ядерку!"
 
-    -- Корпус пульта
     local handle = Instance.new("Part")
     handle.Name = "Handle"
     handle.Size = Vector3.new(0.5, 0.3, 0.8)
@@ -1122,7 +1123,6 @@ local function createNukeRemote()
     handle.CanCollide = false
     handle.Parent = tool
 
-    -- Красная кнопка сверху
     local redBtn = Instance.new("Part")
     redBtn.Name = "RedButton"
     redBtn.Size = Vector3.new(0.3, 0.1, 0.3)
@@ -1137,7 +1137,6 @@ local function createNukeRemote()
     weld1.Part1 = redBtn
     weld1.Parent = handle
 
-    -- Антенна
     local antenna = Instance.new("Part")
     antenna.Name = "Antenna"
     antenna.Size = Vector3.new(0.05, 0.5, 0.05)
@@ -1152,7 +1151,6 @@ local function createNukeRemote()
     weld2.Part1 = antenna
     weld2.Parent = handle
 
-    -- Лампочка-индикатор
     local indicator = Instance.new("Part")
     indicator.Name = "Indicator"
     indicator.Size = Vector3.new(0.08, 0.08, 0.08)
@@ -1160,7 +1158,7 @@ local function createNukeRemote()
     indicator.Color = Color3.fromRGB(0, 255, 0)
     indicator.Material = Enum.Material.Neon
     indicator.CanCollide = false
-    indicator.CFrame = handle.CFrame * CFrame.new(0. 0.15, 0.25)
+    indicator.CFrame = handle.CFrame * CFrame.new(0, 0.15, 0.25)
     indicator.Parent = tool
 
     local weld3 = Instance.new("WeldConstraint")
@@ -1174,23 +1172,19 @@ local function createNukeRemote()
     indicatorLight.Range = 3
     indicatorLight.Parent = indicator
 
-    -- Логика запуска ядерки
     tool.Activated:Connect(function()
         local localRoot = getRoot(LocalPlayer)
         if not localRoot then return end
 
-        -- Лампочка мигает красным — запуск
         indicator.Color = Color3.fromRGB(255, 0, 0)
         indicatorLight.Color = Color3.fromRGB(255, 0, 0)
 
-        -- Сирена
         local siren = Instance.new("Sound")
         siren.SoundId = "rbxassetid://130835443"
         siren.Volume = 2
         siren.Parent = handle
         siren:Play()
 
-        -- Создаём бомбу в воздухе над игроком
         local bombPos = localRoot.Position + Vector3.new(math.random(-30, 30), 200, math.random(-30, 30))
         local bomb = Instance.new("Part")
         bomb.Name = "NukeBomb"
@@ -1202,7 +1196,6 @@ local function createNukeRemote()
         bomb.CFrame = CFrame.new(bombPos)
         bomb.Parent = workspace
 
-        -- Хвост бомбы
         local tail = Instance.new("Part")
         tail.Size = Vector3.new(2, 3, 2)
         tail.Color = Color3.fromRGB(60, 60, 70)
@@ -1216,14 +1209,12 @@ local function createNukeRemote()
         tailWeld.Part1 = tail
         tailWeld.Parent = bomb
 
-        -- Красный мигающий свет на бомбе
         local bombLight = Instance.new("PointLight")
         bombLight.Color = Color3.fromRGB(255, 0, 0)
         bombLight.Brightness = 5
         bombLight.Range = 20
         bombLight.Parent = bomb
 
-        -- Дым за бомбой
         local smoke = Instance.new("ParticleEmitter")
         smoke.Texture = "rbxassetid://243660364"
         smoke.Color = ColorSequence.new(Color3.fromRGB(80, 80, 80))
@@ -1240,7 +1231,6 @@ local function createNukeRemote()
         smoke.Speed = NumberRange.new(1, 3)
         smoke.Parent = bomb
 
-        -- Мигание и писк бомбы при падении
         local blinkOn = true
         local bombSound = Instance.new("Sound")
         bombSound.SoundId = "rbxassetid://130835443"
@@ -1250,33 +1240,27 @@ local function createNukeRemote()
         local blinkConn
         blinkConn = RunService.Heartbeat:Connect(function()
             if not bomb or not bomb.Parent then
-                blinkConn:Disconnect()
+                if blinkConn then blinkConn:Disconnect() end
                 return
             end
 
-            -- Мигание
             blinkOn = not blinkOn
             bomb.Color = blinkOn and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(40, 40, 50)
             bombLight.Brightness = blinkOn and 10 or 2
 
-            -- Писк
             if blinkOn then
                 bombSound:Play()
             end
 
-            -- Проверка — упала ли бомба (близко к земле или столкнулась)
             local root = getRoot(LocalPlayer)
             if root then
                 local heightDiff = bomb.Position.Y - root.Position.Y
                 if heightDiff < 15 then
-                    -- ВЗРЫВ!
-                    blinkConn:Disconnect()
+                    if blinkConn then blinkConn:Disconnect() end
 
-                    -- Удаляем бомбу
                     smoke.Enabled = false
                     bomb:Destroy()
 
-                    -- Огромный взрыв
                     local explosion = Instance.new("Explosion")
                     explosion.Position = root.Position
                     explosion.BlastRadius = 100
@@ -1284,7 +1268,6 @@ local function createNukeRemote()
                     explosion.DestroyJointRadiusPercent = 1
                     explosion.Parent = workspace
 
-                    -- Дополнительный взрыв-шар
                     local blastBall = Instance.new("Part")
                     blastBall.Shape = Enum.PartType.Ball
                     blastBall.Size = Vector3.new(10, 10, 10)
@@ -1295,14 +1278,12 @@ local function createNukeRemote()
                     blastBall.CFrame = CFrame.new(root.Position)
                     blastBall.Parent = workspace
 
-                    -- Громкий звук взрыва
                     local boomSound = Instance.new("Sound")
                     boomSound.SoundId = "rbxassetid://130835443"
                     boomSound.Volume = 5
                     boomSound.Parent = blastBall
                     boomSound:Play()
 
-                    -- Расширение взрыва
                     task.spawn(function()
                         for i = 1, 30 do
                             if not blastBall or not blastBall.Parent then break end
@@ -1313,7 +1294,6 @@ local function createNukeRemote()
                         if blastBall then blastBall:Destroy() end
                     end)
 
-                    -- Ударная волна — отбрасывает игрока
                     if root then
                         root.AssemblyLinearVelocity = Vector3.new(
                             math.random(-100, 100),
@@ -1322,13 +1302,11 @@ local function createNukeRemote()
                         )
                     end
 
-                    -- Убиваем игрока
                     local humanoid = getHumanoid(LocalPlayer)
                     if humanoid then
                         humanoid.Health = 0
                     end
 
-                    -- Возвращаем лампочку на зелёный
                     indicator.Color = Color3.fromRGB(0, 255, 0)
                     indicatorLight.Color = Color3.fromRGB(0, 255, 0)
                 end
@@ -1340,10 +1318,7 @@ local function createNukeRemote()
 end
 
 nukeBtn.MouseButton1Click:Connect(function()
-    if nukeGiven then
-        warn("Пульт уже выдан!")
-        return
-    end
+    if nukeGiven then return end
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if not backpack then
         backpack = LocalPlayer:WaitForChild("Backpack")
@@ -1351,7 +1326,6 @@ nukeBtn.MouseButton1Click:Connect(function()
     local tool = createNukeRemote()
     tool.Parent = backpack
     nukeGiven = true
-    print("Пульт от ядерки выдан! Нажми ЛКМ для запуска.")
 end)
 
 -- ====== КНОПКА 8: КРАШ ======
