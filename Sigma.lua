@@ -21,24 +21,24 @@ local function makeDraggable(frame, dragBar)
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
+        end
+    end)
+
+    dragBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-            if dragging then
-                local delta = input.Position - dragStart
-                frame.Position = UDim2.new(
-                    startPos.X.Scale, startPos.X.Offset + delta.X,
-                    startPos.Y.Scale, startPos.Y.Offset + delta.Y
-                )
-            end
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
         end
     end)
 end
@@ -110,20 +110,17 @@ local function flingPlayer(targetPlayer)
 end
 
 -- ====== ГЛАВНОЕ ОКНО ======
--- Внешний контейнер: надпись + окно вместе
 local windowContainer = Instance.new("Frame")
 windowContainer.Name = "WindowContainer"
-windowContainer.Size = UDim2.new(0, 280, 0, 360)
-windowContainer.Position = UDim2.new(0.5, -140, 0.5, -180)
+windowContainer.Size = UDim2.new(0, 280, 0, 400)
+windowContainer.Position = UDim2.new(0.5, -140, 0.5, -200)
 windowContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 windowContainer.BackgroundTransparency = 1
 windowContainer.BorderSizePixel = 0
-windowContainer.Active = false
 windowContainer.Parent = screenGui
 
 -- Надпись "Сигма чит" над окном
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Name = "SigmaCheatLabel"
 titleLabel.Size = UDim2.new(1, 0, 0, 30)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
@@ -134,18 +131,16 @@ titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.TextSize = 20
 titleLabel.Parent = windowContainer
 
--- Само окно меню
+-- Само окно
 local mainWindow = Instance.new("Frame")
-mainWindow.Name = "MainWindow"
-mainWindow.Size = UDim2.new(1, 0, 0, 330)
+mainWindow.Size = UDim2.new(1, 0, 0, 370)
 mainWindow.Position = UDim2.new(0, 0, 0, 30)
 mainWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 mainWindow.BorderSizePixel = 0
-mainWindow.Active = true
 mainWindow.Parent = windowContainer
 
--- Заголовок окна (для перетаскивания)
-local titleBar = Instance.new("TextLabel")
+-- Заголовок — TextButton (принимает клики, в отличие от TextLabel)
+local titleBar = Instance.new("TextButton")
 titleBar.Size = UDim2.new(1, 0, 0, 35)
 titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 titleBar.BorderSizePixel = 0
@@ -154,11 +149,12 @@ titleBar.TextColor3 = Color3.fromRGB(128, 0, 255)
 titleBar.Font = Enum.Font.SourceSansBold
 titleBar.TextSize = 18
 titleBar.TextXAlignment = Enum.TextXAlignment.Left
+titleBar.AutoButtonColor = false
 titleBar.Parent = mainWindow
 
 makeDraggable(windowContainer, titleBar)
 
--- Кнопка закрытия меню (крестик)
+-- Крестик
 local closeMenuBtn = Instance.new("TextButton")
 closeMenuBtn.Size = UDim2.new(0, 30, 0, 30)
 closeMenuBtn.Position = UDim2.new(1, -32, 0, 2)
@@ -178,7 +174,7 @@ contentFrame.BorderSizePixel = 0
 contentFrame.Parent = mainWindow
 
 local uiListLayout = Instance.new("UIListLayout")
-uiListLayout.Padding = UDim.new(0, 8)
+uiListLayout.Padding = UDim.new(0, 6)
 uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 uiListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 uiListLayout.Parent = contentFrame
@@ -187,7 +183,7 @@ local uiPadding = Instance.new("UIPadding")
 uiPadding.PaddingTop = UDim.new(0, 8)
 uiPadding.Parent = contentFrame
 
--- ====== КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ МЕНЮ ======
+-- ====== КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ ======
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 130, 0, 35)
 toggleBtn.Position = UDim2.new(0, 20, 0, 20)
@@ -212,113 +208,74 @@ closeMenuBtn.MouseButton1Click:Connect(function()
     toggleBtn.Text = "Открыть меню"
 end)
 
--- ====== ФУНКЦИЯ СОЗДАНИЯ КНОПКИ В МЕНЮ ======
-local function createMenuButton(text, actionFunc, color)
+-- ====== ФУНКЦИЯ СОЗДАНИЯ КНОПКИ ======
+local function createMenuButton(text, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.Size = UDim2.new(1, -20, 0, 36)
     btn.BackgroundColor3 = color or Color3.fromRGB(50, 50, 70)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
     btn.TextSize = 16
     btn.Text = text
-    btn.AutoButtonColor = true
     btn.Parent = contentFrame
-
-    btn.MouseButton1Click:Connect(function()
-        actionFunc()
-    end)
-
     return btn
 end
 
--- ====== ПОД-ОКНО ДЛЯ ВВОДА НИКА ======
-local inputWindow = nil
+-- ====== КНОПКА 1: ТЕЛЕПОРТ (с инлайн-вводом) ======
+local tpBtn = createMenuButton("ТП к игроку", Color3.fromRGB(40, 100, 160))
 
-local function createInputWindow(title, actionFunc)
-    if inputWindow then
-        inputWindow:Destroy()
+-- Контейнер для инлайн-ввода (появляется под кнопкой)
+local tpInputContainer = Instance.new("Frame")
+tpInputContainer.Size = UDim2.new(1, -20, 0, 70)
+tpInputContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+tpInputContainer.BorderSizePixel = 0
+tpInputContainer.Visible = false
+tpInputContainer.Parent = contentFrame
+
+local tpTextBox = Instance.new("TextBox")
+tpTextBox.Size = UDim2.new(1, -10, 0, 30)
+tpTextBox.Position = UDim2.new(0, 5, 0, 5)
+tpTextBox.PlaceholderText = "Введите ник игрока..."
+tpTextBox.Text = ""
+tpTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+tpTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpTextBox.Font = Enum.Font.SourceSans
+tpTextBox.TextSize = 16
+tpTextBox.ClearTextOnFocus = false
+tpTextBox.Parent = tpInputContainer
+
+local tpSubmitBtn = Instance.new("TextButton")
+tpSubmitBtn.Size = UDim2.new(1, -10, 0, 28)
+tpSubmitBtn.Position = UDim2.new(0, 5, 0, 38)
+tpSubmitBtn.Text = "Телепортироваться"
+tpSubmitBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 160)
+tpSubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpSubmitBtn.Font = Enum.Font.SourceSansBold
+tpSubmitBtn.TextSize = 14
+tpSubmitBtn.Parent = tpInputContainer
+
+local tpInputVisible = false
+
+tpBtn.MouseButton1Click:Connect(function()
+    tpInputVisible = not tpInputVisible
+    tpInputContainer.Visible = tpInputVisible
+end)
+
+tpSubmitBtn.MouseButton1Click:Connect(function()
+    local targetPlayer = findPlayer(tpTextBox.Text)
+    if not targetPlayer then return end
+    local targetRoot = getRoot(targetPlayer)
+    local localRoot = getRoot(LocalPlayer)
+    if targetRoot and localRoot then
+        localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
+        print("ТП к: " .. targetPlayer.Name)
+    else
+        warn("Не удалось найти HumanoidRootPart!")
     end
-
-    inputWindow = Instance.new("Frame")
-    inputWindow.Size = UDim2.new(0, 240, 0, 110)
-    inputWindow.Position = UDim2.new(0, 340, 0, 100)
-    inputWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    inputWindow.BorderSizePixel = 0
-    inputWindow.Active = true
-    inputWindow.Parent = screenGui
-
-    local inputTitle = Instance.new("TextLabel")
-    inputTitle.Size = UDim2.new(1, 0, 0, 25)
-    inputTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-    inputTitle.BorderSizePixel = 0
-    inputTitle.Text = "  " .. title
-    inputTitle.TextColor3 = Color3.fromRGB(200, 200, 220)
-    inputTitle.Font = Enum.Font.SourceSans
-    inputTitle.TextSize = 14
-    inputTitle.TextXAlignment = Enum.TextXAlignment.Left
-    inputTitle.Parent = inputWindow
-
-    makeDraggable(inputWindow, inputTitle)
-
-    local closeInput = Instance.new("TextButton")
-    closeInput.Size = UDim2.new(0, 25, 0, 25)
-    closeInput.Position = UDim2.new(1, -27, 0, 0)
-    closeInput.Text = "X"
-    closeInput.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    closeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeInput.Font = Enum.Font.SourceSansBold
-    closeInput.TextSize = 14
-    closeInput.Parent = inputTitle
-
-    closeInput.MouseButton1Click:Connect(function()
-        inputWindow:Destroy()
-        inputWindow = nil
-    end)
-
-    local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(1, -20, 0, 28)
-    textBox.Position = UDim2.new(0, 10, 0, 35)
-    textBox.PlaceholderText = "Введите ник игрока..."
-    textBox.Text = ""
-    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBox.Font = Enum.Font.SourceSans
-    textBox.TextSize = 16
-    textBox.ClearTextOnFocus = false
-    textBox.Parent = inputWindow
-
-    local submitBtn = Instance.new("TextButton")
-    submitBtn.Size = UDim2.new(1, -20, 0, 28)
-    submitBtn.Position = UDim2.new(0, 10, 0, 72)
-    submitBtn.Text = "Выполнить"
-    submitBtn.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
-    submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    submitBtn.Font = Enum.Font.SourceSansBold
-    submitBtn.TextSize = 16
-    submitBtn.Parent = inputWindow
-
-    submitBtn.MouseButton1Click:Connect(function()
-        actionFunc(textBox.Text)
-    end)
-end
-
--- ====== КНОПКА 1: ТЕЛЕПОРТ ======
-createMenuButton("ТП к игроку", function()
-    createInputWindow("Телепорт", function(text)
-        local targetPlayer = findPlayer(text)
-        if not targetPlayer then return end
-        local targetRoot = getRoot(targetPlayer)
-        local localRoot = getRoot(LocalPlayer)
-        if targetRoot and localRoot then
-            localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
-            print("ТП к: " .. targetPlayer.Name)
-        else
-            warn("Не удалось найти HumanoidRootPart!")
-        end
-    end)
-end, Color3.fromRGB(40, 100, 160))
+end)
 
 -- ====== КНОПКА 2: ПИСТОЛЕТ ======
+local pistolBtn = createMenuButton("Выдать пистолет", Color3.fromRGB(60, 120, 50))
 local pistolGiven = false
 
 local function createPistol()
@@ -397,7 +354,6 @@ local function createPistol()
         flashWeld.Part1 = flash
         flashWeld.Parent = handle
 
-        -- Звук
         local shootSound = Instance.new("Sound")
         shootSound.SoundId = "rbxassetid://130835443"
         shootSound.Volume = 1
@@ -468,7 +424,7 @@ local function createPistol()
     return tool
 end
 
-createMenuButton("Выдать пистолет", function()
+pistolBtn.MouseButton1Click:Connect(function()
     if pistolGiven then
         warn("Пистолет уже выдан!")
         return
@@ -481,9 +437,11 @@ createMenuButton("Выдать пистолет", function()
     tool.Parent = backpack
     pistolGiven = true
     print("Пистолет выдан! Стреляйте в игрока — будет флинг.")
-end, Color3.fromRGB(60, 120, 50))
+end)
 
 -- ====== КНОПКА 3: Я СИГМА ======
+local sigmaBtn = createMenuButton("Я СИГМА", Color3.fromRGB(128, 0, 255))
+
 local sigmaSound = nil
 local sigmaPlaying = false
 local sigmaAuraConn = nil
@@ -491,7 +449,7 @@ local sigmaPoseConn = nil
 local originalWalkSpeed = 16
 local originalJumpPower = 50
 
-createMenuButton("Я СИГМА", function()
+sigmaBtn.MouseButton1Click:Connect(function()
     if sigmaPlaying then
         sigmaPlaying = false
         if sigmaSound then
@@ -499,20 +457,15 @@ createMenuButton("Я СИГМА", function()
             sigmaSound:Destroy()
             sigmaSound = nil
         end
-        if sigmaAuraConn then
-            sigmaAuraConn:Disconnect()
-            sigmaAuraConn = nil
-        end
-        if sigmaPoseConn then
-            sigmaPoseConn:Disconnect()
-            sigmaPoseConn = nil
-        end
+        if sigmaAuraConn then sigmaAuraConn:Disconnect() end
+        if sigmaPoseConn then sigmaPoseConn:Disconnect() end
         local humanoid = getHumanoid(LocalPlayer)
         if humanoid then
             humanoid.WalkSpeed = originalWalkSpeed
             humanoid.JumpPower = originalJumpPower
             humanoid.JumpHeight = 7.2
         end
+        sigmaBtn.Text = "Я СИГМА"
         print("Сигма выключен")
         return
     end
@@ -535,6 +488,7 @@ createMenuButton("Я СИГМА", function()
     sigmaSound.Parent = localRoot
     sigmaSound:Play()
     sigmaPlaying = true
+    sigmaBtn.Text = "Я СИГМА (ВКЛ)"
     print("Я СИГМА — музыка и поза включены!")
 
     -- Сигма-поза
@@ -612,10 +566,87 @@ createMenuButton("Я СИГМА", function()
             if aura then aura:Destroy() end
         end)
     end)
-end, Color3.fromRGB(128, 0, 255))
+end)
 
--- ====== КНОПКА 4: КРАШ КЛИЕНТА ======
-createMenuButton("Краш игры", function()
+-- ====== КНОПКА 4: ПОЛЁТ ======
+local flyBtn = createMenuButton("Полёт", Color3.fromRGB(0, 150, 200))
+
+local flying = false
+local flyConn = nil
+local flySpeed = 50
+
+flyBtn.MouseButton1Click:Connect(function()
+    flying = not flying
+    local root = getRoot(LocalPlayer)
+    local humanoid = getHumanoid(LocalPlayer)
+
+    if not root or not humanoid then return end
+
+    if flying then
+        -- Включаем полёт
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        humanoid.JumpHeight = 0
+        flyBtn.Text = "Полёт (ВКЛ)"
+        print("Полёт включён! WASD + Space/Shift")
+
+        local camera = workspace.CurrentCamera
+
+        flyConn = RunService.RenderStepped:Connect(function()
+            if not flying then return end
+            local root2 = getRoot(LocalPlayer)
+            if not root2 then return end
+
+            -- Направление камеры
+            local camCFrame = camera.CFrame
+            local forward = camCFrame.LookVector
+            local right = camCFrame.RightVector
+
+            local moveVec = Vector3.new(0, 0, 0)
+
+            -- Читаем клавиши
+            local keys = UserInputService:GetKeysPressed()
+            for _, key in ipairs(keys) do
+                if key.KeyCode == Enum.KeyCode.W then
+                    moveVec += forward
+                elseif key.KeyCode == Enum.KeyCode.S then
+                    moveVec -= forward
+                elseif key.KeyCode == Enum.KeyCode.A then
+                    moveVec -= right
+                elseif key.KeyCode == Enum.KeyCode.D then
+                    moveVec += right
+                elseif key.KeyCode == Enum.KeyCode.Space then
+                    moveVec += Vector3.new(0, 1, 0)
+                elseif key.KeyCode == Enum.KeyCode.LeftShift then
+                    moveVec -= Vector3.new(0, 1, 0)
+                end
+            end
+
+            if moveVec.Magnitude > 0 then
+                moveVec = moveVec.Unit * flySpeed
+            end
+
+            -- Перемещаем персонажа
+            root2.AssemblyLinearVelocity = moveVec
+        end)
+    else
+        -- Выключаем полёт
+        if flyConn then
+            flyConn:Disconnect()
+            flyConn = nil
+        end
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+        humanoid.JumpHeight = 7.2
+        flyBtn.Text = "Полёт"
+        print("Полёт выключен")
+    end
+end)
+
+-- ====== КНОПКА 5: КРАШ КЛИЕНТА ======
+local crashBtn = createMenuButton("Краш игры", Color3.fromRGB(160, 30, 30))
+
+crashBtn.MouseButton1Click:Connect(function()
     print("Краш через 3 секунды...")
     task.wait(3)
 
@@ -647,7 +678,7 @@ createMenuButton("Краш игры", function()
             task.wait(0.01)
         end
     end)
-end, Color3.fromRGB(160, 30, 30))
+end)
 
 -- ====== КНОПКА ЗАКРЫТИЯ СКРИПТА ======
 local killBtn = Instance.new("TextButton")
@@ -667,11 +698,20 @@ killBtn.MouseButton1Click:Connect(function()
     end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
+    if flyConn then flyConn:Disconnect() end
     if sigmaPlaying then
         local humanoid = getHumanoid(LocalPlayer)
         if humanoid then
-            humanoid.WalkSpeed = originalWalkSpeed
-            humanoid.JumpPower = originalJumpPower
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
+            humanoid.JumpHeight = 7.2
+        end
+    end
+    if flying then
+        local humanoid = getHumanoid(LocalPlayer)
+        if humanoid then
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
             humanoid.JumpHeight = 7.2
         end
     end
