@@ -10,10 +10,10 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- ====== ПЕРЕТАСКИВАНИЕ (через MouseButton1Down/Up) ======
+-- ====== ПЕРЕТАСКИВАНИЕ ======
 local function makeDraggable(frame, dragBar)
     local dragging = false
-    local dragInput, dragStart, startPos
+    local dragStart, startPos
 
     dragBar.MouseButton1Down:Connect(function()
         dragging = true
@@ -108,13 +108,13 @@ end
 local windowContainer = Instance.new("Frame")
 windowContainer.Name = "WindowContainer"
 windowContainer.Size = UDim2.new(0, 280, 0, 420)
-windowContainer.Position = UDim2.new(0.5, -140, 0.5, -210)
+windowContainer.Position = UDim2.new(1, -300, 0.5, -210)
 windowContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 windowContainer.BackgroundTransparency = 1
 windowContainer.BorderSizePixel = 0
 windowContainer.Parent = screenGui
 
--- Надпись "Сигма чит" над окном — тоже TextButton для надёжности
+-- Надпись "Сигма чит"
 local titleLabel = Instance.new("TextButton")
 titleLabel.Size = UDim2.new(1, 0, 0, 30)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
@@ -135,7 +135,7 @@ mainWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 mainWindow.BorderSizePixel = 0
 mainWindow.Parent = windowContainer
 
--- Заголовок окна
+-- Заголовок
 local titleBar = Instance.new("TextButton")
 titleBar.Size = UDim2.new(1, 0, 0, 35)
 titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
@@ -162,7 +162,7 @@ closeMenuBtn.Font = Enum.Font.SourceSansBold
 closeMenuBtn.TextSize = 16
 closeMenuBtn.Parent = titleBar
 
--- Контейнер для кнопок — делаем прокручиваемым
+-- Контейнер — прокручиваемый
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Size = UDim2.new(1, 0, 1, -35)
 contentFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -183,10 +183,10 @@ local uiPadding = Instance.new("UIPadding")
 uiPadding.PaddingTop = UDim.new(0, 8)
 uiPadding.Parent = contentFrame
 
--- ====== КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ ======
+-- ====== КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ (справа сверху) ======
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 130, 0, 35)
-toggleBtn.Position = UDim2.new(0, 20, 0, 20)
+toggleBtn.Position = UDim2.new(1, -140, 0, 20)
 toggleBtn.Text = "Скрыть меню"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 255)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -221,7 +221,7 @@ local function createMenuButton(text, color)
     return btn
 end
 
--- ====== КНОПКА 1: ТЕЛЕПОРТ (с инлайн-вводом) ======
+-- ====== КНОПКА 1: ТЕЛЕПОРТ ======
 local tpBtn = createMenuButton("ТП к игроку", Color3.fromRGB(40, 100, 160))
 
 local tpInputContainer = Instance.new("Frame")
@@ -268,8 +268,6 @@ tpSubmitBtn.MouseButton1Click:Connect(function()
     if targetRoot and localRoot then
         localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
         print("ТП к: " .. targetPlayer.Name)
-    else
-        warn("Не удалось найти HumanoidRootPart!")
     end
 end)
 
@@ -428,15 +426,13 @@ pistolBtn.MouseButton1Click:Connect(function()
     print("Пистолет выдан!")
 end)
 
--- ====== КНОПКА 3: Я СИГМА (настоящая аура) ======
+-- ====== КНОПКА 3: Я СИГМА (ходьба не блокируется) ======
 local sigmaBtn = createMenuButton("Я СИГМА", Color3.fromRGB(128, 0, 255))
 
 local sigmaSound = nil
 local sigmaPlaying = false
 local sigmaAuraConn = nil
 local sigmaPoseConn = nil
-local originalWalkSpeed = 16
-local originalJumpPower = 50
 local sigmaHighlight = nil
 local sigmaLight = nil
 local sigmaParticles = nil
@@ -458,12 +454,6 @@ sigmaBtn.MouseButton1Click:Connect(function()
         if sigmaAuraConn then sigmaAuraConn:Disconnect() end
         if sigmaPoseConn then sigmaPoseConn:Disconnect() end
         removeSigmaEffects()
-        local humanoid = getHumanoid(LocalPlayer)
-        if humanoid then
-            humanoid.WalkSpeed = originalWalkSpeed
-            humanoid.JumpPower = originalJumpPower
-            humanoid.JumpHeight = 7.2
-        end
         sigmaBtn.Text = "Я СИГМА"
         print("Сигма выключен")
         return
@@ -471,17 +461,10 @@ sigmaBtn.MouseButton1Click:Connect(function()
 
     local char = LocalPlayer.Character
     local localRoot = getRoot(LocalPlayer)
-    local humanoid = getHumanoid(LocalPlayer)
-    if not char or not localRoot or not humanoid then return end
+    if not char or not localRoot then return end
 
-    originalWalkSpeed = humanoid.WalkSpeed
-    originalJumpPower = humanoid.JumpPower or 50
+    -- НЕ блокируем ходьбу — можно двигаться!
 
-    humanoid.WalkSpeed = 0
-    humanoid.JumpPower = 0
-    humanoid.JumpHeight = 0
-
-    -- Музыка
     sigmaSound = Instance.new("Sound")
     sigmaSound.SoundId = "rbxassetid://9046865451"
     sigmaSound.Volume = 2
@@ -492,7 +475,6 @@ sigmaBtn.MouseButton1Click:Connect(function()
     sigmaBtn.Text = "Я СИГМА (ВКЛ)"
 
     -- ====== НАСТОЯЩАЯ АУРА ======
-    -- 1. Highlight — неоновый контур вокруг персонажа
     sigmaHighlight = Instance.new("Highlight")
     sigmaHighlight.FillColor = Color3.fromRGB(128, 0, 255)
     sigmaHighlight.OutlineColor = Color3.fromRGB(180, 80, 255)
@@ -500,16 +482,14 @@ sigmaBtn.MouseButton1Click:Connect(function()
     sigmaHighlight.OutlineTransparency = 0
     sigmaHighlight.Parent = char
 
-    -- 2. PointLight — свечение
     sigmaLight = Instance.new("PointLight")
     sigmaLight.Color = Color3.fromRGB(128, 0, 255)
     sigmaLight.Brightness = 5
     sigmaLight.Range = 15
     sigmaLight.Parent = localRoot
 
-    -- 3. ParticleEmitter — частицы ауры
     sigmaParticles = Instance.new("ParticleEmitter")
-    sigmaParticles.Texture = "rbxassetid://243660364" -- стандартная звезда
+    sigmaParticles.Texture = "rbxassetid://243660364"
     sigmaParticles.Color = ColorSequence.new(Color3.fromRGB(180, 80, 255))
     sigmaParticles.Size = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1.5),
@@ -528,7 +508,7 @@ sigmaBtn.MouseButton1Click:Connect(function()
     sigmaParticles.LightEmission = 1
     sigmaParticles.Parent = localRoot
 
-    -- ====== СИГМА-ПОЗА ======
+    -- ====== СИГМА-ПОЗА (без блокировки движения) ======
     sigmaPoseConn = RunService.RenderStepped:Connect(function()
         if not sigmaPlaying then return end
         local c = LocalPlayer.Character
@@ -580,10 +560,9 @@ sigmaBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 4: ПОЛЁТ (с управлением скоростью + анимация) ======
+-- ====== КНОПКА 4: ПОЛЁТ ======
 local flyBtn = createMenuButton("Полёт [50]", Color3.fromRGB(0, 150, 200))
 
--- Панель управления скоростью
 local flySpeedPanel = Instance.new("Frame")
 flySpeedPanel.Size = UDim2.new(1, -20, 0, 36)
 flySpeedPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
@@ -625,7 +604,6 @@ local flying = false
 local flyConn = nil
 local flyPoseConn = nil
 local flySpeed = 50
-local flySpeedVisible = false
 
 local function updateFlyLabel()
     flyBtn.Text = "Полёт [" .. flySpeed .. "]"
@@ -655,12 +633,10 @@ flyBtn.MouseButton1Click:Connect(function()
         humanoid.JumpHeight = 0
         flyBtn.Text = "Полёт [" .. flySpeed .. "] ВКЛ"
         flySpeedPanel.Visible = true
-        flySpeedVisible = true
         print("Полёт включён! WASD + Space/Shift")
 
         local camera = workspace.CurrentCamera
 
-        -- Движение
         flyConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local root2 = getRoot(LocalPlayer)
@@ -669,7 +645,6 @@ flyBtn.MouseButton1Click:Connect(function()
             local camCFrame = camera.CFrame
             local forward = camCFrame.LookVector
             local right = camCFrame.RightVector
-
             local moveVec = Vector3.new(0, 0, 0)
 
             local keys = UserInputService:GetKeysPressed()
@@ -696,7 +671,7 @@ flyBtn.MouseButton1Click:Connect(function()
             root2.AssemblyLinearVelocity = moveVec
         end)
 
-        -- Анимация полёта — поза супермена
+        -- Анимация полёта
         flyPoseConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local c = LocalPlayer.Character
@@ -704,45 +679,29 @@ flyBtn.MouseButton1Click:Connect(function()
 
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
-                -- R15
                 local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
                 local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
-                local rightHip = upperTorso.Parent:FindFirstChild("RightHip")
-                local leftHip = upperTorso.Parent:FindFirstChild("LeftHip")
                 local waist = upperTorso.Parent:FindFirstChild("LowerTorso") and upperTorso.Parent.LowerTorso:FindFirstChild("Waist")
                 local head = c:FindFirstChild("Head")
                 local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
 
-                -- Руки назад (поза полёта)
                 if rightShoulder then
                     rightShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(20))
                 end
                 if leftShoulder then
                     leftShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(-20))
                 end
-                -- Ноги вытянуты
-                if rightHip then
-                    rightHip.Transform = CFrame.Angles(math.rad(-10), 0, 0)
-                end
-                if leftHip then
-                    leftHip.Transform = CFrame.Angles(math.rad(-10), 0, 0)
-                end
-                -- Корпус наклонён вперёд
                 if waist then
                     waist.Transform = CFrame.Angles(math.rad(15), 0, 0)
                 end
-                -- Голова смотрит вперёд
                 if neck then
                     neck.Transform = CFrame.Angles(math.rad(10), 0, 0)
                 end
             else
-                -- R6
                 local torso = c:FindFirstChild("Torso")
                 if torso then
                     local rightShoulder = torso:FindFirstChild("Right Shoulder")
                     local leftShoulder = torso:FindFirstChild("Left Shoulder")
-                    local rightHip = torso:FindFirstChild("Right Hip")
-                    local leftHip = torso:FindFirstChild("Left Hip")
                     local head = c:FindFirstChild("Head")
                     local neck = head and head:FindFirstChild("Neck")
                     local rootJoint = c:FindFirstChild("HumanoidRootPart") and c.HumanoidRootPart:FindFirstChild("RootJoint")
@@ -752,12 +711,6 @@ flyBtn.MouseButton1Click:Connect(function()
                     end
                     if leftShoulder then
                         leftShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(-20))
-                    end
-                    if rightHip then
-                        rightHip.Transform = CFrame.Angles(math.rad(-10), 0, 0)
-                    end
-                    if leftHip then
-                        leftHip.Transform = CFrame.Angles(math.rad(-10), 0, 0)
                     end
                     if neck then
                         neck.Transform = CFrame.Angles(math.rad(10), 0, 0)
@@ -776,12 +729,173 @@ flyBtn.MouseButton1Click:Connect(function()
         humanoid.JumpHeight = 7.2
         flyBtn.Text = "Полёт [" .. flySpeed .. "]"
         flySpeedPanel.Visible = false
-        flySpeedVisible = false
         print("Полёт выключен")
     end
 end)
 
--- ====== КНОПКА 5: КРАШ КЛИЕНТА ======
+-- ====== КНОПКА 5: МНЕ ПОВЕЗЁТ (РУЛЕТКА) ======
+local luckyBtn = createMenuButton("Мне повезёт", Color3.fromRGB(255, 180, 0))
+
+local luckyRolling = false
+local godModeConn = nil
+
+local function applyGodMode()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    -- Бессмертие
+    humanoid.MaxHealth = math.huge
+    humanoid.Health = math.huge
+    humanoid.BreakJointsOnDeath = false
+
+    -- Защита от урона каждый кадр
+    godModeConn = RunService.Heartbeat:Connect(function()
+        local c = LocalPlayer.Character
+        if not c then return end
+        local h = c:FindFirstChildOfClass("Humanoid")
+        if h then
+            h.Health = h.MaxHealth
+        end
+    end)
+
+    -- Визуальный эффект — золотая аура
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        local goldLight = Instance.new("PointLight")
+        goldLight.Color = Color3.fromRGB(255, 215, 0)
+        goldLight.Brightness = 8
+        goldLight.Range = 20
+        goldLight.Name = "GodModeLight"
+        goldLight.Parent = root
+
+        local goldHighlight = Instance.new("Highlight")
+        goldHighlight.FillColor = Color3.fromRGB(255, 215, 0)
+        goldHighlight.OutlineColor = Color3.fromRGB(255, 255, 100)
+        goldHighlight.FillTransparency = 0.8
+        goldHighlight.OutlineTransparency = 0
+        goldHighlight.Name = "GodModeHighlight"
+        goldHighlight.Parent = char
+    end
+
+    print("РЕЖИМ БОГА АКТИВЕН!")
+end
+
+local function removeGodMode()
+    if godModeConn then
+        godModeConn:Disconnect()
+        godModeConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        local h = char:FindFirstChildOfClass("Humanoid")
+        if h then
+            h.MaxHealth = 100
+            h.Health = 100
+            h.BreakJointsOnDeath = true
+        end
+        local light = char:FindFirstChild("HumanoidRootPart")
+        if light then
+            local gl = light:FindFirstChild("GodModeLight")
+            if gl then gl:Destroy() end
+        end
+        local hl = char:FindFirstChild("GodModeHighlight")
+        if hl then hl:Destroy() end
+    end
+    print("Режим бога выключен")
+end
+
+luckyBtn.MouseButton1Click:Connect(function()
+    if luckyRolling then return end
+    luckyRolling = true
+    luckyBtn.Text = "Крутим..."
+    luckyBtn.BackgroundColor3 = Color3.fromRGB(100, 80, 0)
+
+    -- Окно рулетки
+    local rouletteFrame = Instance.new("Frame")
+    rouletteFrame.Size = UDim2.new(0, 260, 0, 80)
+    rouletteFrame.Position = UDim2.new(0.5, -130, 0.5, -40)
+    rouletteFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    rouletteFrame.BorderSizePixel = 0
+    rouletteFrame.Parent = screenGui
+
+    local rouletteLabel = Instance.new("TextLabel")
+    rouletteLabel.Size = UDim2.new(1, 0, 0, 50)
+    rouletteLabel.Position = UDim2.new(0, 0, 0, 10)
+    rouletteLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    rouletteLabel.BorderSizePixel = 0
+    rouletteLabel.Text = "🎲"
+    rouletteLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    rouletteLabel.Font = Enum.Font.SourceSansBold
+    rouletteLabel.TextSize = 28
+    rouletteLabel.Parent = rouletteFrame
+
+    local rouletteResult = Instance.new("TextLabel")
+    rouletteResult.Size = UDim2.new(1, 0, 0, 25)
+    rouletteResult.Position = UDim2.new(0, 0, 0, 50)
+    rouletteResult.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    rouletteResult.BorderSizePixel = 0
+    rouletteResult.Text = ""
+    rouletteResult.TextColor3 = Color3.fromRGB(255, 255, 255)
+    rouletteResult.Font = Enum.Font.SourceSansBold
+    rouletteResult.TextSize = 18
+    rouletteResult.Parent = rouletteFrame
+
+    -- Анимация рулетки — быстрая смена текста
+    local results = { "РЕЖИМ БОГА", "RESET", "РЕЖИМ БОГА", "RESET", "РЕЖИМ БОГА", "RESET" }
+    local ticks = 0
+    local maxTicks = 20
+
+    task.spawn(function()
+        while ticks < maxTicks do
+            ticks += 1
+            local idx = (ticks % #results) + 1
+            rouletteLabel.Text = results[idx]
+            rouletteLabel.TextColor3 = (idx % 2 == 1) and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(255, 80, 80)
+            -- Замедляемся к концу
+            local delay = 0.03 + (ticks / maxTicks) * 0.15
+            task.wait(delay)
+        end
+
+        -- Финальный результат
+        local roll = math.random(1, 2)
+        if roll == 1 then
+            -- РЕЖИМ БОГА
+            rouletteLabel.Text = "РЕЖИМ БОГА"
+            rouletteLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+            rouletteResult.Text = "✨ Ты бессмертен! ✨"
+            rouletteResult.TextColor3 = Color3.fromRGB(255, 215, 0)
+            applyGodMode()
+        else
+            -- RESET
+            rouletteLabel.Text = "RESET"
+            rouletteLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            rouletteResult.Text = "💥 Перезагрузка... 💥"
+            rouletteResult.TextColor3 = Color3.fromRGB(255, 80, 80)
+
+            -- Сбрасываем персонажа
+            task.wait(1.5)
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.Health = 0
+                end
+            end
+        end
+
+        -- Закрытие окна рулетки
+        task.wait(2.5)
+        rouletteFrame:Destroy()
+
+        luckyRolling = false
+        luckyBtn.Text = "Мне повезёт"
+        luckyBtn.BackgroundColor3 = Color3.fromRGB(255, 180, 0)
+    end)
+end)
+
+-- ====== КНОПКА 6: КРАШ КЛИЕНТА ======
 local crashBtn = createMenuButton("Краш игры", Color3.fromRGB(160, 30, 30))
 
 crashBtn.MouseButton1Click:Connect(function()
@@ -821,7 +935,7 @@ end)
 -- ====== КНОПКА ЗАКРЫТИЯ СКРИПТА ======
 local killBtn = Instance.new("TextButton")
 killBtn.Size = UDim2.new(0, 130, 0, 30)
-killBtn.Position = UDim2.new(0, 20, 0, 60)
+killBtn.Position = UDim2.new(1, -140, 0, 60)
 killBtn.Text = "Закрыть скрипт"
 killBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 killBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -830,30 +944,13 @@ killBtn.TextSize = 14
 killBtn.Parent = screenGui
 
 killBtn.MouseButton1Click:Connect(function()
-    if sigmaSound then
-        sigmaSound:Stop()
-        sigmaSound:Destroy()
-    end
+    if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
     if flyConn then flyConn:Disconnect() end
     if flyPoseConn then flyPoseConn:Disconnect() end
+    if godModeConn then godModeConn:Disconnect() end
     removeSigmaEffects()
-    if sigmaPlaying then
-        local humanoid = getHumanoid(LocalPlayer)
-        if humanoid then
-            humanoid.WalkSpeed = 16
-            humanoid.JumpPower = 50
-            humanoid.JumpHeight = 7.2
-        end
-    end
-    if flying then
-        local humanoid = getHumanoid(LocalPlayer)
-        if humanoid then
-            humanoid.WalkSpeed = 16
-            humanoid.JumpPower = 50
-            humanoid.JumpHeight = 7.2
-        end
-    end
+    removeGodMode()
     screenGui:Destroy()
 end)
