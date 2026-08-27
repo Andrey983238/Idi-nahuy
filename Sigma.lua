@@ -661,13 +661,11 @@ local function addRedEyes(char)
     local head = char:FindFirstChild("Head")
     if not head then return end
 
-    -- Удаляем старые если есть
     local existing = head:FindFirstChild("RedEyeLeft")
     if existing then existing:Destroy() end
     local existing2 = head:FindFirstChild("RedEyeRight")
     if existing2 then existing2:Destroy() end
 
-    -- Левый глаз
     local eyeL = Instance.new("Part")
     eyeL.Name = "RedEyeLeft"
     eyeL.Size = Vector3.new(0.15, 0.15, 0.05)
@@ -689,7 +687,6 @@ local function addRedEyes(char)
     lightL.Range = 5
     lightL.Parent = eyeL
 
-    -- Правый глаз
     local eyeR = Instance.new("Part")
     eyeR.Name = "RedEyeRight"
     eyeR.Size = Vector3.new(0.15, 0.15, 0.05)
@@ -714,21 +711,13 @@ end
 
 local function removeRedEyes(char)
     if not char then return end
-    local head = char:FindFirstChild("Head")
-    if head then
-        local eL = head:FindFirstChild("RedEyeLeft")
-        if eL then eL:Destroy() end
-        local eR = head:FindFirstChild("RedEyeRight")
-        if eR then eR:Destroy() end
-    end
-    -- Они приварены к Head, так что если Head есть — ищем в нём
-    local eL2 = char:FindFirstChild("RedEyeLeft")
-    if eL2 then eL2:Destroy() end
-    local eR2 = char:FindFirstChild("RedEyeRight")
-    if eR2 then eR2:Destroy() end
+    local eL = char:FindFirstChild("RedEyeLeft")
+    if eL then eL:Destroy() end
+    local eR = char:FindFirstChild("RedEyeRight")
+    if eR then eR:Destroy() end
 end
 
--- ====== КНОПКА 4: ПОЛЁТ (поза супермена + красные глаза) ======
+-- ====== КНОПКА 4: ПОЛЁТ ======
 local flyBtn = createMenuButton("Полёт [50]", Color3.fromRGB(0, 150, 200))
 
 local flySpeedPanel = Instance.new("Frame")
@@ -801,13 +790,10 @@ flyBtn.MouseButton1Click:Connect(function()
         humanoid.JumpHeight = 0
         flyBtn.Text = "Полёт [" .. flySpeed .. "] ВКЛ"
         flySpeedPanel.Visible = true
-
-        -- Красные глаза
         addRedEyes(char)
 
         local camera = workspace.CurrentCamera
 
-        -- Движение
         flyConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local root2 = getRoot(LocalPlayer)
@@ -832,72 +818,40 @@ flyBtn.MouseButton1Click:Connect(function()
             root2.AssemblyLinearVelocity = moveVec
         end)
 
-        -- ====== ПОЗА СУПЕРМЕНА ======
-        -- Тело горизонтально, руки вытянуты вперёд, ноги вместе назад
         flyPoseConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local c = LocalPlayer.Character
             if not c then return end
 
             local t = os.clock()
-            -- Лёгкое покачивание для живости
             local sway = math.sin(t * 6) * 0.03
             local armSway = math.sin(t * 6) * math.rad(3)
 
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
-                -- R15
                 local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
                 local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
-                local rightHip = c:FindFirstChild("RightLeg") and c:FindFirstChild("RightHip")
-                local leftHip = c:FindFirstChild("LeftLeg") and c:FindFirstChild("LeftHip")
                 local waist = c:FindFirstChild("LowerTorso") and c.LowerTorso:FindFirstChild("Waist")
                 local head = c:FindFirstChild("Head")
                 local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
+                local rightHip = c:FindFirstChild("RightLeg") and c:FindFirstChild("RightHip")
+                local leftHip = c:FindFirstChild("LeftLeg") and c:FindFirstChild("LeftHip")
                 local rightKnee = c:FindFirstChild("RightLeg") and c.RightLeg:FindFirstChild("RightKnee")
                 local leftKnee = c:FindFirstChild("LeftLeg") and c.LeftLeg:FindFirstChild("LeftKnee")
                 local rightAnkle = c:FindFirstChild("RightFoot") and c.RightFoot:FindFirstChild("RightAnkle")
                 local leftAnkle = c:FindFirstChild("LeftFoot") and c.LeftFoot:FindFirstChild("LeftAnkle")
 
-                -- Руки вытянуты вперёд, как у супермена
-                if rightShoulder then
-                    rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5))
-                end
-                if leftShoulder then
-                    leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5))
-                end
-
-                -- Ноги прямые, вытянуты назад
-                if rightHip then
-                    rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3))
-                end
-                if leftHip then
-                    leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3))
-                end
-                if rightKnee then
-                    rightKnee.Transform = CFrame.Angles(0, 0, 0)
-                end
-                if leftKnee then
-                    leftKnee.Transform = CFrame.Angles(0, 0, 0)
-                end
-                if rightAnkle then
-                    rightAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0)
-                end
-                if leftAnkle then
-                    leftAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0)
-                end
-
-                -- Корпус горизонтально — наклон 90 градусов
-                if waist then
-                    waist.Transform = CFrame.Angles(math.rad(80), 0, 0)
-                end
-
-                -- Голова смотрит вперёд (компенсирует наклон корпуса)
-                if neck then
-                    neck.Transform = CFrame.Angles(math.rad(-80), 0, 0)
-                end
+                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5)) end
+                if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5)) end
+                if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3)) end
+                if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3)) end
+                if rightKnee then rightKnee.Transform = CFrame.Angles(0, 0, 0) end
+                if leftKnee then leftKnee.Transform = CFrame.Angles(0, 0, 0) end
+                if rightAnkle then rightAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0) end
+                if leftAnkle then leftAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0) end
+                if waist then waist.Transform = CFrame.Angles(math.rad(80), 0, 0) end
+                if neck then neck.Transform = CFrame.Angles(math.rad(-80), 0, 0) end
             else
-                -- R6
                 local torso = c:FindFirstChild("Torso")
                 if torso then
                     local rightShoulder = torso:FindFirstChild("Right Shoulder")
@@ -908,38 +862,23 @@ flyBtn.MouseButton1Click:Connect(function()
                     local neck = head and head:FindFirstChild("Neck")
                     local rootJoint = c:FindFirstChild("HumanoidRootPart") and c.HumanoidRootPart:FindFirstChild("RootJoint")
 
-                    -- Руки вытянуты вперёд
-                    if rightShoulder then
-                        rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5))
-                    end
-                    if leftShoulder then
-                        leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5))
-                    end
-
-                    -- Ноги прямые, чуть назад
-                    if rightHip then
-                        rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3))
-                    end
-                    if leftHip then
-                        leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3))
-                    end
-
-                    -- Голова смотрит вперёд
-                    if neck then
-                        neck.Transform = CFrame.Angles(math.rad(-80), 0, 0)
-                    end
-
-                    -- Корпус наклонён горизонтально
-                    if rootJoint then
-                        rootJoint.Transform = CFrame.Angles(math.rad(80), 0, 0)
-                    end
+                    if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5)) end
+                    if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5)) end
+                    if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3)) end
+                    if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3)) end
+                    if neck then neck.Transform = CFrame.Angles(math.rad(-80), 0, 0) end
+                    if rootJoint then rootJoint.Transform = CFrame.Angles(math.rad(80), 0, 0) end
                 end
             end
         end)
     else
-        if flyConn then flyConn:Disconnect() end
-        if flyPoseConn then flyPoseConn:Disconnect() end
-        humanoid.WalkSpeed = 16
+        if flyConn then flyConn:Disconnect() flyConn = nil end
+        if flyPoseConn then flyPoseConn:Disconnect() flyPoseConn = nil end
+        if speedActive and not flying then
+            humanoid.WalkSpeed = walkSpeed
+        else
+            humanoid.WalkSpeed = 16
+        end
         humanoid.JumpPower = 50
         humanoid.JumpHeight = 7.2
         flyBtn.Text = "Полёт [" .. flySpeed .. "]"
@@ -948,7 +887,102 @@ flyBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ====== КНОПКА 5: МНЕ ПОВЕЗЁТ ======
+-- ====== КНОПКА 5: СКОРОСТЬ ХОДЬБЫ ======
+local speedBtn = createMenuButton("Скорость [16]", Color3.fromRGB(255, 140, 0))
+
+local speedPanel = Instance.new("Frame")
+speedPanel.Size = UDim2.new(1, -20, 0, 36)
+speedPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+speedPanel.BorderSizePixel = 0
+speedPanel.Visible = false
+speedPanel.Parent = contentFrame
+
+local speedDown = Instance.new("TextButton")
+speedDown.Size = UDim2.new(0, 36, 0, 30)
+speedDown.Position = UDim2.new(0, 5, 0, 3)
+speedDown.Text = "−"
+speedDown.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+speedDown.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedDown.Font = Enum.Font.SourceSansBold
+speedDown.TextSize = 20
+speedDown.Parent = speedPanel
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -82, 0, 30)
+speedLabel.Position = UDim2.new(0, 41, 0, 3)
+speedLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+speedLabel.Text = "Скорость: 16"
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Font = Enum.Font.SourceSans
+speedLabel.TextSize = 14
+speedLabel.Parent = speedPanel
+
+local speedUp = Instance.new("TextButton")
+speedUp.Size = UDim2.new(0, 36, 0, 30)
+speedUp.Position = UDim2.new(1, -41, 0, 3)
+speedUp.Text = "+"
+speedUp.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+speedUp.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedUp.Font = Enum.Font.SourceSansBold
+speedUp.TextSize = 20
+speedUp.Parent = speedPanel
+
+local speedPanelVisible = false
+local walkSpeed = 16
+local speedActive = false
+
+local function updateSpeedLabel()
+    speedBtn.Text = "Скорость [" .. walkSpeed .. "]"
+    speedLabel.Text = "Скорость: " .. walkSpeed
+end
+
+local function applyWalkSpeed()
+    local humanoid = getHumanoid(LocalPlayer)
+    if humanoid and speedActive and not flying then
+        humanoid.WalkSpeed = walkSpeed
+    end
+end
+
+speedDown.MouseButton1Click:Connect(function()
+    walkSpeed = math.max(16, walkSpeed - 10)
+    updateSpeedLabel()
+    applyWalkSpeed()
+end)
+
+speedUp.MouseButton1Click:Connect(function()
+    walkSpeed = math.min(500, walkSpeed + 10)
+    updateSpeedLabel()
+    applyWalkSpeed()
+end)
+
+speedBtn.MouseButton1Click:Connect(function()
+    speedPanelVisible = not speedPanelVisible
+    speedPanel.Visible = speedPanelVisible
+
+    if speedPanelVisible then
+        speedActive = true
+        speedBtn.Text = "Скорость [" .. walkSpeed .. "] ВКЛ"
+        applyWalkSpeed()
+    else
+        speedActive = false
+        speedBtn.Text = "Скорость [" .. walkSpeed .. "]"
+        local humanoid = getHumanoid(LocalPlayer)
+        if humanoid and not flying then
+            humanoid.WalkSpeed = 16
+        end
+    end
+end)
+
+local speedMaintainConn = RunService.Heartbeat:Connect(function()
+    if speedActive and not flying then
+        local humanoid = getHumanoid(LocalPlayer)
+        if humanoid then
+            humanoid.WalkSpeed = walkSpeed
+        end
+    end
+end)
+
+-- ====== КНОПКА 6: МНЕ ПОВЕЗЁТ ======
 local luckyBtn = createMenuButton("Мне повезёт", Color3.fromRGB(255, 180, 0))
 
 local luckyRolling = false
@@ -1069,7 +1103,7 @@ luckyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 6: КРАШ ======
+-- ====== КНОПКА 7: КРАШ ======
 local crashBtn = createMenuButton("Краш игры", Color3.fromRGB(160, 30, 30))
 
 crashBtn.MouseButton1Click:Connect(function()
@@ -1112,12 +1146,14 @@ killBtn.Parent = screenGui
 
 killBtn.MouseButton1Click:Connect(function()
     FlingActive = false
+    speedActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
     if flyConn then flyConn:Disconnect() end
     if flyPoseConn then flyPoseConn:Disconnect() end
     if godModeConn then godModeConn:Disconnect() end
+    if speedMaintainConn then speedMaintainConn:Disconnect() end
     removeSigmaEffectsFromChar(LocalPlayer.Character)
     removeRedEyes(LocalPlayer.Character)
     screenGui:Destroy()
@@ -1148,6 +1184,14 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         end
         task.wait(0.3)
         addRedEyes(newChar)
+    end
+
+    if speedActive then
+        local h = newChar:FindFirstChildOfClass("Humanoid")
+        if h then
+            task.wait(0.5)
+            h.WalkSpeed = walkSpeed
+        end
     end
 
     if godModeConn and godModeConn.Connected then
