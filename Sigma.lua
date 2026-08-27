@@ -5,17 +5,17 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "PlayerToolGui"
+screenGui.Name = "SigmaGui"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ====== ПЕРЕТАСКИВАНИЕ ======
-local function makeDraggable(frame)
+local function makeDraggable(frame, dragBar)
     local dragging = false
     local dragStart, startPos
 
-    frame.InputBegan:Connect(function(input)
+    dragBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -43,101 +43,19 @@ local function makeDraggable(frame)
     end)
 end
 
--- ====== ПАНЕЛЬ С ТЕКСТОВЫМ ПОЛЕМ ======
-local function createPanelWithInput(yOffset, buttonText, actionFunc, placeholder)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 260, 0, 90)
-    frame.Position = UDim2.new(0, 20, 0, yOffset)
-    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Parent = screenGui
-
-    local topBar = Instance.new("TextLabel")
-    topBar.Size = UDim2.new(1, 0, 0, 20)
-    topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    topBar.BorderSizePixel = 0
-    topBar.Text = "≡ Перетащи"
-    topBar.TextColor3 = Color3.fromRGB(160, 160, 180)
-    topBar.Font = Enum.Font.SourceSans
-    topBar.TextSize = 14
-    topBar.Parent = frame
-
-    local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(1, -20, 0, 28)
-    textBox.Position = UDim2.new(0, 10, 0, 26)
-    textBox.PlaceholderText = placeholder or "Введите ник игрока..."
-    textBox.Text = ""
-    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBox.Font = Enum.Font.SourceSans
-    textBox.TextSize = 16
-    textBox.ClearTextOnFocus = false
-    textBox.Parent = frame
-
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 28)
-    button.Position = UDim2.new(0, 10, 0, 58)
-    button.Text = buttonText
-    button.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.Font = Enum.Font.SourceSansBold
-    button.TextSize = 16
-    button.Parent = frame
-
-    makeDraggable(frame)
-
-    button.MouseButton1Click:Connect(function()
-        actionFunc(textBox.Text)
-    end)
-
-    return frame
-end
-
--- ====== ПАНЕЛЬ БЕЗ ТЕКСТОВОГО ПОЛЯ ======
-local function createPanelNoInput(yOffset, buttonText, actionFunc)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 260, 0, 50)
-    frame.Position = UDim2.new(0, 20, 0, yOffset)
-    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Parent = screenGui
-
-    local topBar = Instance.new("TextLabel")
-    topBar.Size = UDim2.new(1, 0, 0, 18)
-    topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    topBar.BorderSizePixel = 0
-    topBar.Text = "≡ Перетащи"
-    topBar.TextColor3 = Color3.fromRGB(160, 160, 180)
-    topBar.Font = Enum.Font.SourceSans
-    topBar.TextSize = 14
-    topBar.Parent = frame
-
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 28)
-    button.Position = UDim2.new(0, 10, 0, 22)
-    button.Text = buttonText
-    button.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.Font = Enum.Font.SourceSansBold
-    button.TextSize = 16
-    button.Parent = frame
-
-    makeDraggable(frame)
-
-    button.MouseButton1Click:Connect(function()
-        actionFunc()
-    end)
-
-    return frame
-end
-
 -- ====== УТИЛИТЫ ======
 local function getRoot(player)
     local char = player.Character
     if char then
         return char:FindFirstChild("HumanoidRootPart")
+    end
+    return nil
+end
+
+local function getHumanoid(player)
+    local char = player.Character
+    if char then
+        return char:FindFirstChildOfClass("Humanoid")
     end
     return nil
 end
@@ -156,7 +74,6 @@ local function findPlayer(name)
     return nil
 end
 
--- Определение игрока по попавшей детали
 local function getPlayerFromPart(part)
     if not part then return nil end
     local char = part.Parent
@@ -168,14 +85,13 @@ local function getPlayerFromPart(part)
     return nil
 end
 
--- Флинг через быстрое вращение вокруг цели
+-- ====== ФЛИНГ ======
 local function flingPlayer(targetPlayer)
     local targetRoot = getRoot(targetPlayer)
     local localRoot = getRoot(LocalPlayer)
     if not targetRoot or not localRoot then return end
 
     local originalCFrame = localRoot.CFrame
-
     local spinSpeed = math.rad(7200)
     local elapsed = 0
     local duration = 1.5
@@ -193,21 +109,255 @@ local function flingPlayer(targetPlayer)
     end)
 end
 
--- ====== ПАНЕЛЬ 1: ТЕЛЕПОРТ ======
-createPanelWithInput(30, "ТП к игроку", function(text)
-    local targetPlayer = findPlayer(text)
-    if not targetPlayer then return end
-    local targetRoot = getRoot(targetPlayer)
-    local localRoot = getRoot(LocalPlayer)
-    if targetRoot and localRoot then
-        localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
-        print("ТП к: " .. targetPlayer.Name)
-    else
-        warn("Не удалось найти HumanoidRootPart!")
+-- ====== СИГМА-ПОЗА ======
+local sigmaPoseActive = false
+local sigmaPoseConn = nil
+
+local function applySigmaPose()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    -- Останавливаем движение
+    humanoid.WalkSpeed = 0
+    humanoid.JumpPower = 0
+    humanoid.JumpHeight = 0
+
+    -- Меняем позу через Motor6D
+    local function setJoint(name, c0, c1)
+        local joint = char:FindFirstChild(name, true)
+        if joint and joint:IsA("Motor6D") then
+            if c0 then joint.C0 = c0 end
+            if c1 then joint.C1 = c1 end
+        end
     end
+
+    -- Крутая сигма-поза: руки скрещены, голова чуть назад
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local lowerTorso = char:FindFirstChild("LowerTorso")
+    local upperTorso = char:FindFirstChild("UpperTorso")
+    local head = char:FindFirstChild("Head")
+
+    -- R15
+    if upperTorso then
+        local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
+        local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
+        local waist = lowerTorso and lowerTorso:FindFirstChild("Waist")
+
+        if rightShoulder then
+            rightShoulder.Transform = CFrame.Angles(0, 0, math.rad(-80))
+        end
+        if leftShoulder then
+            leftShoulder.Transform = CFrame.Angles(0, 0, math.rad(80))
+        end
+        if waist then
+            waist.Transform = CFrame.Angles(math.rad(-10), 0, 0)
+        end
+    else
+        -- R6
+        local torso = char:FindFirstChild("Torso")
+        if torso then
+            local rightShoulder = torso:FindFirstChild("Right Shoulder")
+            local leftShoulder = torso:FindFirstChild("Left Shoulder")
+            local neck = char:FindFirstChild("Head") and char.Head:FindFirstChild("Neck")
+
+            if rightShoulder then
+                rightShoulder.Transform = CFrame.Angles(0, 0, math.rad(-80))
+            end
+            if leftShoulder then
+                leftShoulder.Transform = CFrame.Angles(0, 0, math.rad(80))
+            end
+            if neck then
+                neck.Transform = CFrame.Angles(math.rad(-15), 0, 0)
+            end
+        end
+    end
+end
+
+-- ====== ГЛАВНОЕ ОКНО-МЕНЮ ======
+local mainWindow = Instance.new("Frame")
+mainWindow.Name = "MainWindow"
+mainWindow.Size = UDim2.new(0, 280, 0, 320)
+mainWindow.Position = UDim2.new(0, 50, 0, 80)
+mainWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainWindow.BorderSizePixel = 0
+mainWindow.Active = true
+mainWindow.Parent = screenGui
+
+-- Заголовок (для перетаскивания)
+local titleBar = Instance.new("TextLabel")
+titleBar.Size = UDim2.new(1, 0, 0, 35)
+titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+titleBar.BorderSizePixel = 0
+titleBar.Text = "  SIGMA MENU"
+titleBar.TextColor3 = Color3.fromRGB(128, 0, 255)
+titleBar.Font = Enum.Font.SourceSansBold
+titleBar.TextSize = 18
+titleBar.TextXAlignment = Enum.TextXAlignment.Left
+titleBar.Parent = mainWindow
+
+makeDraggable(mainWindow, titleBar)
+
+-- Кнопка закрытия меню
+local closeMenuBtn = Instance.new("TextButton")
+closeMenuBtn.Size = UDim2.new(0, 30, 0, 30)
+closeMenuBtn.Position = UDim2.new(1, -32, 0, 2)
+closeMenuBtn.Text = "X"
+closeMenuBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeMenuBtn.Font = Enum.Font.SourceSansBold
+closeMenuBtn.TextSize = 16
+closeMenuBtn.Parent = titleBar
+
+-- Контейнер для кнопок
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, 0, 1, -35)
+contentFrame.Position = UDim2.new(0, 0, 0, 35)
+contentFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+contentFrame.BorderSizePixel = 0
+contentFrame.Parent = mainWindow
+
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Padding = UDim.new(0, 8)
+uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiListLayout.Parent = contentFrame
+
+-- Кнопка для открытия/закрытия меню
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 120, 0, 35)
+toggleBtn.Position = UDim2.new(0, 50, 0, 20)
+toggleBtn.Text = "Открыть меню"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 255)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextSize = 16
+toggleBtn.Parent = screenGui
+
+local menuOpen = true
+
+toggleBtn.MouseButton1Click:Connect(function()
+    menuOpen = not menuOpen
+    mainWindow.Visible = menuOpen
+    toggleBtn.Text = menuOpen and "Закрыть меню" or "Открыть меню"
 end)
 
--- ====== ПАНЕЛЬ 2: ВИЗУАЛЬНЫЙ ПИСТОЛЕТ СО ФЛИНГОМ ======
+closeMenuBtn.MouseButton1Click:Connect(function()
+    mainWindow.Visible = false
+    menuOpen = false
+    toggleBtn.Text = "Открыть меню"
+end)
+
+-- ====== ФУНКЦИЯ СОЗДАНИЯ КНОПКИ В МЕНЮ ======
+local function createMenuButton(text, actionFunc, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 35)
+    btn.BackgroundColor3 = color or Color3.fromRGB(50, 50, 70)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.Text = text
+    btn.Parent = contentFrame
+
+    btn.MouseButton1Click:Connect(function()
+        actionFunc()
+    end)
+
+    return btn
+end
+
+-- ====== ПОД-ОКНО ДЛЯ ВВОДА НИКА ======
+local inputWindow = nil
+
+local function createInputWindow(title, actionFunc)
+    -- Закрываем старое окно если есть
+    if inputWindow then
+        inputWindow:Destroy()
+    end
+
+    inputWindow = Instance.new("Frame")
+    inputWindow.Size = UDim2.new(0, 240, 0, 100)
+    inputWindow.Position = UDim2.new(0, 350, 0, 80)
+    inputWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    inputWindow.BorderSizePixel = 0
+    inputWindow.Active = true
+    inputWindow.Parent = screenGui
+
+    local inputTitle = Instance.new("TextLabel")
+    inputTitle.Size = UDim2.new(1, 0, 0, 25)
+    inputTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    inputTitle.BorderSizePixel = 0
+    inputTitle.Text = "  " .. title
+    inputTitle.TextColor3 = Color3.fromRGB(200, 200, 220)
+    inputTitle.Font = Enum.Font.SourceSans
+    inputTitle.TextSize = 14
+    inputTitle.TextXAlignment = Enum.TextXAlignment.Left
+    inputTitle.Parent = inputWindow
+
+    makeDraggable(inputWindow, inputTitle)
+
+    local closeInput = Instance.new("TextButton")
+    closeInput.Size = UDim2.new(0, 25, 0, 25)
+    closeInput.Position = UDim2.new(1, -27, 0, 0)
+    closeInput.Text = "X"
+    closeInput.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    closeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeInput.Font = Enum.Font.SourceSansBold
+    closeInput.TextSize = 14
+    closeInput.Parent = inputTitle
+
+    closeInput.MouseButton1Click:Connect(function()
+        inputWindow:Destroy()
+        inputWindow = nil
+    end)
+
+    local textBox = Instance.new("TextBox")
+    textBox.Size = UDim2.new(1, -20, 0, 28)
+    textBox.Position = UDim2.new(0, 10, 0, 32)
+    textBox.PlaceholderText = "Введите ник игрока..."
+    textBox.Text = ""
+    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.Font = Enum.Font.SourceSans
+    textBox.TextSize = 16
+    textBox.ClearTextOnFocus = false
+    textBox.Parent = inputWindow
+
+    local submitBtn = Instance.new("TextButton")
+    submitBtn.Size = UDim2.new(1, -20, 0, 28)
+    submitBtn.Position = UDim2.new(0, 10, 0, 66)
+    submitBtn.Text = "Выполнить"
+    submitBtn.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
+    submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    submitBtn.Font = Enum.Font.SourceSansBold
+    submitBtn.TextSize = 16
+    submitBtn.Parent = inputWindow
+
+    submitBtn.MouseButton1Click:Connect(function()
+        actionFunc(textBox.Text)
+    end)
+end
+
+-- ====== КНОПКА 1: ТЕЛЕПОРТ ======
+createMenuButton("ТП к игроку", function()
+    createInputWindow("Телепорт", function(text)
+        local targetPlayer = findPlayer(text)
+        if not targetPlayer then return end
+        local targetRoot = getRoot(targetPlayer)
+        local localRoot = getRoot(LocalPlayer)
+        if targetRoot and localRoot then
+            localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
+            print("ТП к: " .. targetPlayer.Name)
+        else
+            warn("Не удалось найти HumanoidRootPart!")
+        end
+    end)
+end, Color3.fromRGB(40, 100, 160))
+
+-- ====== КНОПКА 2: ПИСТОЛЕТ ======
 local pistolGiven = false
 
 local function createPistol()
@@ -266,20 +416,17 @@ local function createPistol()
     weld3.Part1 = trigger
     weld3.Parent = handle
 
-    -- ====== ВЫСТРЕЛ С ФЛИНГОМ ======
     tool.Activated:Connect(function()
         local localRoot = getRoot(LocalPlayer)
         if not localRoot then return end
 
         -- Вспышка
         local flash = Instance.new("Part")
-        flash.Name = "Flash"
         flash.Size = Vector3.new(0.4, 0.4, 0.4)
         flash.Shape = Enum.PartType.Ball
         flash.Color = Color3.fromRGB(255, 220, 80)
         flash.Material = Enum.Material.Neon
         flash.CanCollide = false
-        flash.Anchored = false
         flash.Transparency = 0.2
         flash.CFrame = handle.CFrame * CFrame.new(0, 0.15, -2.2)
         flash.Parent = workspace
@@ -289,7 +436,7 @@ local function createPistol()
         flashWeld.Part1 = flash
         flashWeld.Parent = handle
 
-        -- Звук выстрела
+        -- Звук
         local shootSound = Instance.new("Sound")
         shootSound.SoundId = "rbxassetid://130835443"
         shootSound.Volume = 1
@@ -310,14 +457,13 @@ local function createPistol()
         -- Отдача
         localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
 
-        -- ====== RAYCAST — попадание по игроку ======
+        -- Raycast
         local mouse = LocalPlayer:GetMouse()
         local rayOrigin = handle.Position
         local rayDirection = (mouse.Hit.Position - rayOrigin).Unit * 500
 
         local raycastParams = RaycastParams.new()
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        -- Исключаем себя и части пистолета
         local filterList = {LocalPlayer.Character}
         for _, part in ipairs(tool:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -329,20 +475,18 @@ local function createPistol()
         local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 
         if rayResult then
-            local hitPart = rayResult.Instance
-            local hitPlayer = getPlayerFromPart(hitPart)
-
+            local hitPlayer = getPlayerFromPart(rayResult.Instance)
             if hitPlayer and hitPlayer ~= LocalPlayer then
                 print("Попадание по: " .. hitPlayer.Name .. " — флинг!")
                 flingPlayer(hitPlayer)
             else
-                print("Промах или попадание не по игроку")
+                print("Промах")
             end
         else
             print("Промах")
         end
 
-        -- Визуальный след луча
+        -- Луч
         local beam = Instance.new("Part")
         beam.Anchored = true
         beam.CanCollide = false
@@ -365,7 +509,7 @@ local function createPistol()
     return tool
 end
 
-createPanelNoInput(130, "Выдать пистолет", function()
+createMenuButton("Выдать пистолет", function()
     if pistolGiven then
         warn("Пистолет уже выдан!")
         return
@@ -378,30 +522,59 @@ createPanelNoInput(130, "Выдать пистолет", function()
     tool.Parent = backpack
     pistolGiven = true
     print("Пистолет выдан! Стреляйте в игрока — будет флинг.")
-end)
+end, Color3.fromRGB(60, 120, 50))
 
--- ====== ПАНЕЛЬ 3: Я СИГМА (МУЗЫКА) ======
+-- ====== КНОПКА 3: Я СИГМА ======
 local sigmaSound = nil
 local sigmaPlaying = false
 local sigmaAuraConn = nil
+local sigmaPoseConn = nil
+local originalWalkSpeed = 16
+local originalJumpPower = 50
 
-createPanelNoInput(190, "Я СИГМА", function()
-    if sigmaPlaying and sigmaSound then
-        sigmaSound:Stop()
-        sigmaSound:Destroy()
-        sigmaSound = nil
+createMenuButton("Я СИГМА", function()
+    if sigmaPlaying then
+        -- Отключение
         sigmaPlaying = false
+        if sigmaSound then
+            sigmaSound:Stop()
+            sigmaSound:Destroy()
+            sigmaSound = nil
+        end
         if sigmaAuraConn then
             sigmaAuraConn:Disconnect()
             sigmaAuraConn = nil
         end
-        print("Музыка остановлена")
+        if sigmaPoseConn then
+            sigmaPoseConn:Disconnect()
+            sigmaPoseConn = nil
+        end
+        -- Возвращаем движение
+        local humanoid = getHumanoid(LocalPlayer)
+        if humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.JumpPower = originalJumpPower
+            humanoid.JumpHeight = 7.2
+        end
+        print("Сигма выключен")
         return
     end
 
+    -- Включение
     local localRoot = getRoot(LocalPlayer)
-    if not localRoot then return end
+    local humanoid = getHumanoid(LocalPlayer)
+    if not localRoot or not humanoid then return end
 
+    -- Сохраняем оригинальные значения
+    originalWalkSpeed = humanoid.WalkSpeed
+    originalJumpPower = humanoid.JumpPower or 50
+
+    -- Останавливаем движение
+    humanoid.WalkSpeed = 0
+    humanoid.JumpPower = 0
+    humanoid.JumpHeight = 0
+
+    -- Музыка
     sigmaSound = Instance.new("Sound")
     sigmaSound.SoundId = "rbxassetid://9046865451"
     sigmaSound.Volume = 2
@@ -409,8 +582,57 @@ createPanelNoInput(190, "Я СИГМА", function()
     sigmaSound.Parent = localRoot
     sigmaSound:Play()
     sigmaPlaying = true
-    print("Я СИГМА — музыка включена!")
+    print("Я СИГМА — музыка и поза включены!")
 
+    -- ====== СИГМА-ПОЗА (каждый кадр) ======
+    sigmaPoseConn = RunService.RenderStepped:Connect(function()
+        if not sigmaPlaying then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        -- R15
+        local upperTorso = char:FindFirstChild("UpperTorso")
+        if upperTorso then
+            local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
+            local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
+            local head = char:FindFirstChild("Head")
+            local neck = head and head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck")
+
+            -- Правая рука — скрещена на груди
+            if rightShoulder then
+                rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60))
+            end
+            -- Левая рука — скрещена на груди
+            if leftShoulder then
+                leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60))
+            end
+            -- Голова — чуть назад, взгляд сверху вниз
+            if neck then
+                neck.Transform = CFrame.Angles(math.rad(-20), 0, 0)
+            end
+        else
+            -- R6
+            local torso = char:FindFirstChild("Torso")
+            if torso then
+                local rightShoulder = torso:FindFirstChild("Right Shoulder")
+                local leftShoulder = torso:FindFirstChild("Left Shoulder")
+                local head = char:FindFirstChild("Head")
+                local neck = head and head:FindFirstChild("Neck")
+
+                if rightShoulder then
+                    rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60))
+                end
+                if leftShoulder then
+                    leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60))
+                end
+                if neck then
+                    neck.Transform = CFrame.Angles(math.rad(-20), 0, 0)
+                end
+            end
+        end
+    end)
+
+    -- ====== АУРА ======
     sigmaAuraConn = RunService.Heartbeat:Connect(function()
         if not sigmaPlaying then return end
         local root = getRoot(LocalPlayer)
@@ -442,10 +664,10 @@ createPanelNoInput(190, "Я СИГМА", function()
             if aura then aura:Destroy() end
         end)
     end)
-end)
+end, Color3.fromRGB(128, 0, 255))
 
--- ====== ПАНЕЛЬ 4: КРАШ КЛИЕНТА ======
-createPanelNoInput(250, "Краш игры", function()
+-- ====== КНОПКА 4: КРАШ КЛИЕНТА ======
+createMenuButton("Краш игры", function()
     print("Краш через 3 секунды...")
     task.wait(3)
 
@@ -477,26 +699,33 @@ createPanelNoInput(250, "Краш игры", function()
             task.wait(0.01)
         end
     end)
-end)
+end, Color3.fromRGB(160, 30, 30))
 
--- ====== КНОПКА ЗАКРЫТИЯ ======
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5)
-closeButton.Text = "X"
-closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.Font = Enum.Font.SourceSansBold
-closeButton.TextSize = 18
-closeButton.Parent = screenGui
+-- ====== КНОПКА ЗАКРЫТИЯ ВСЕГО GUI ======
+local killBtn = Instance.new("TextButton")
+killBtn.Size = UDim2.new(0, 120, 0, 30)
+killBtn.Position = UDim2.new(0, 50, 0, 60)
+killBtn.Text = "Закрыть скрипт"
+killBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+killBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+killBtn.Font = Enum.Font.SourceSans
+killBtn.TextSize = 14
+killBtn.Parent = screenGui
 
-closeButton.MouseButton1Click:Connect(function()
+killBtn.MouseButton1Click:Connect(function()
     if sigmaSound then
         sigmaSound:Stop()
         sigmaSound:Destroy()
     end
-    if sigmaAuraConn then
-        sigmaAuraConn:Disconnect()
+    if sigmaAuraConn then sigmaAuraConn:Disconnect() end
+    if sigmaPoseConn then sigmaPoseConn:Disconnect() end
+    if sigmaPlaying then
+        local humanoid = getHumanoid(LocalPlayer)
+        if humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.JumpPower = originalJumpPower
+            humanoid.JumpHeight = 7.2
+        end
     end
     screenGui:Destroy()
 end)
