@@ -4,7 +4,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- Forward-declare переменные
+-- Forward-declare
 local flying = false
 local flyConn = nil
 local flyPoseConn = nil
@@ -379,31 +379,33 @@ Players.PlayerRemoving:Connect(function()
     if tpListVisible then refreshTpList() end
 end)
 
--- ====== КНОПКА 2: ПИСТОЛЕТ ======
+-- ====== КНОПКА 2: ПИСТОЛЕТ (улучшенный) ======
 local pistolBtn = createMenuButton("Выдать пистолет", Color3.fromRGB(60, 120, 50))
 local pistolGiven = false
 
 local function createPistol()
     local tool = Instance.new("Tool")
-    tool.Name = "Визуал Пистолет"
+    tool.Name = "Пистолет"
     tool.RequiresHandle = true
-    tool.ToolTip = "Стреляй — KILASIK флинг!"
+    tool.ToolTip = "ЛКМ — стрелять + флинг"
 
+    -- КОРПУС
     local handle = Instance.new("Part")
     handle.Name = "Handle"
-    handle.Size = Vector3.new(0.4, 0.4, 1.8)
-    handle.Color = Color3.fromRGB(40, 40, 45)
+    handle.Size = Vector3.new(0.3, 0.35, 1.2)
+    handle.Color = Color3.fromRGB(35, 35, 40)
     handle.Material = Enum.Material.Metal
     handle.CanCollide = false
     handle.Parent = tool
 
+    -- СТВОЛ
     local barrel = Instance.new("Part")
     barrel.Name = "Barrel"
-    barrel.Size = Vector3.new(0.25, 0.25, 1.2)
-    barrel.Color = Color3.fromRGB(25, 25, 30)
+    barrel.Size = Vector3.new(0.15, 0.15, 1.5)
+    barrel.Color = Color3.fromRGB(20, 20, 25)
     barrel.Material = Enum.Material.Metal
     barrel.CanCollide = false
-    barrel.CFrame = handle.CFrame * CFrame.new(0, 0.15, -1.4)
+    barrel.CFrame = handle.CFrame * CFrame.new(0, 0.05, -1.2)
     barrel.Parent = tool
 
     local weld1 = Instance.new("WeldConstraint")
@@ -411,13 +413,14 @@ local function createPistol()
     weld1.Part1 = barrel
     weld1.Parent = handle
 
+    -- РУКОЯТКА
     local grip = Instance.new("Part")
     grip.Name = "Grip"
-    grip.Size = Vector3.new(0.35, 0.9, 0.45)
-    grip.Color = Color3.fromRGB(30, 30, 35)
+    grip.Size = Vector3.new(0.28, 0.7, 0.35)
+    grip.Color = Color3.fromRGB(25, 25, 30)
     grip.Material = Enum.Material.Metal
     grip.CanCollide = false
-    grip.CFrame = handle.CFrame * CFrame.new(0, -0.55, 0.3)
+    grip.CFrame = handle.CFrame * CFrame.new(0, -0.4, 0.25) * CFrame.Angles(math.rad(15), 0, 0)
     grip.Parent = tool
 
     local weld2 = Instance.new("WeldConstraint")
@@ -425,59 +428,107 @@ local function createPistol()
     weld2.Part1 = grip
     weld2.Parent = handle
 
-    local triggerPart = Instance.new("Part")
-    triggerPart.Name = "Trigger"
-    triggerPart.Size = Vector3.new(0.12, 0.25, 0.18)
-    triggerPart.Color = Color3.fromRGB(50, 50, 55)
-    triggerPart.Material = Enum.Material.Metal
-    triggerPart.CanCollide = false
-    triggerPart.CFrame = handle.CFrame * CFrame.new(0, -0.1, -0.25)
-    triggerPart.Parent = tool
+    -- СПУСКОВАЯ СКОБА
+    local guard = Instance.new("Part")
+    guard.Name = "TriggerGuard"
+    guard.Size = Vector3.new(0.1, 0.25, 0.3)
+    guard.Color = Color3.fromRGB(40, 40, 45)
+    guard.Material = Enum.Material.Metal
+    guard.CanCollide = false
+    guard.CFrame = handle.CFrame * CFrame.new(0, -0.15, -0.15)
+    guard.Parent = tool
 
     local weld3 = Instance.new("WeldConstraint")
     weld3.Part0 = handle
-    weld3.Part1 = triggerPart
+    weld3.Part1 = guard
     weld3.Parent = handle
 
+    -- ДУЛО
+    local muzzle = Instance.new("Part")
+    muzzle.Name = "Muzzle"
+    muzzle.Size = Vector3.new(0.2, 0.2, 0.15)
+    muzzle.Color = Color3.fromRGB(15, 15, 20)
+    muzzle.Material = Enum.Material.Metal
+    muzzle.CanCollide = false
+    muzzle.CFrame = barrel.CFrame * CFrame.new(0, 0, -0.8)
+    muzzle.Parent = tool
+
+    local weld4 = Instance.new("WeldConstraint")
+    weld4.Part0 = barrel
+    weld4.Part1 = muzzle
+    weld4.Parent = barrel
+
+    -- ВЫСТРЕЛ
     tool.Activated:Connect(function()
         local localRoot = getRoot(LocalPlayer)
         if not localRoot then return end
 
+        -- Вспышка
         local flash = Instance.new("Part")
-        flash.Size = Vector3.new(0.4, 0.4, 0.4)
+        flash.Size = Vector3.new(0.5, 0.5, 0.5)
         flash.Shape = Enum.PartType.Ball
-        flash.Color = Color3.fromRGB(255, 220, 80)
+        flash.Color = Color3.fromRGB(255, 230, 100)
         flash.Material = Enum.Material.Neon
         flash.CanCollide = false
-        flash.Transparency = 0.2
-        flash.CFrame = handle.CFrame * CFrame.new(0, 0.15, -2.2)
+        flash.Transparency = 0.1
+        flash.CFrame = muzzle.CFrame * CFrame.new(0, 0, -0.5)
         flash.Parent = workspace
 
         local flashWeld = Instance.new("WeldConstraint")
-        flashWeld.Part0 = handle
+        flashWeld.Part0 = muzzle
         flashWeld.Part1 = flash
-        flashWeld.Parent = handle
+        flashWeld.Parent = muzzle
 
+        local muzzleLight = Instance.new("PointLight")
+        muzzleLight.Color = Color3.fromRGB(255, 220, 100)
+        muzzleLight.Brightness = 8
+        muzzleLight.Range = 10
+        muzzleLight.Parent = flash
+
+        -- Дым из дула
+        local muzzleSmoke = Instance.new("ParticleEmitter")
+        muzzleSmoke.Texture = "rbxassetid://243660364"
+        muzzleSmoke.Color = ColorSequence.new(Color3.fromRGB(200, 200, 200))
+        muzzleSmoke.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.5),
+            NumberSequenceKeypoint.new(1, 2),
+        })
+        muzzleSmoke.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.3),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        muzzleSmoke.Lifetime = NumberRange.new(0.3, 0.6)
+        muzzleSmoke.Rate = 0
+        muzzleSmoke.Speed = NumberRange.new(3, 5)
+        muzzleSmoke.Parent = muzzle
+        muzzleSmoke:Emit(10)
+
+        -- Звук
         local shootSound = Instance.new("Sound")
         shootSound.SoundId = "rbxassetid://130835443"
-        shootSound.Volume = 1
+        shootSound.Volume = 1.5
+        shootSound.PlaybackSpeed = 0.8
         shootSound.Parent = handle
         shootSound:Play()
 
+        -- Затухание вспышки
         task.spawn(function()
-            for i = 1, 8 do
+            for i = 1, 6 do
                 if not flash or not flash.Parent then break end
-                flash.Transparency = 0.2 + (i / 8) * 0.8
-                flash.Size = flash.Size + Vector3.new(0.15, 0.15, 0.15)
+                flash.Transparency = 0.1 + (i / 6) * 0.9
+                flash.Size = flash.Size + Vector3.new(0.2, 0.2, 0.2)
+                muzzleLight.Brightness = math.max(0, muzzleLight.Brightness - 1.5)
                 task.wait(0.02)
             end
             if flash then flash:Destroy() end
         end)
 
-        localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
+        -- Отдача
+        localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -8
 
+        -- Raycast
         local mouse = LocalPlayer:GetMouse()
-        local rayOrigin = handle.Position
+        local rayOrigin = muzzle.Position
         local rayDirection = (mouse.Hit.Position - rayOrigin).Unit * 500
 
         local raycastParams = RaycastParams.new()
@@ -493,8 +544,28 @@ local function createPistol()
         local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 
         if rayResult then
-            local hitPlayer = getPlayerFromPart(rayResult.Instance)
+            local hitPart = rayResult.Instance
+            local hitPos = rayResult.Position
+
+            -- Дырка от пули
+            local bulletHole = Instance.new("Part")
+            bulletHole.Size = Vector3.new(0.15, 0.15, 0.05)
+            bulletHole.Color = Color3.fromRGB(10, 10, 10)
+            bulletHole.Material = Enum.Material.Metal
+            bulletHole.CanCollide = false
+            bulletHole.Anchored = true
+            bulletHole.CFrame = CFrame.new(hitPos, rayDirection) * CFrame.new(0, 0, -0.05)
+            bulletHole.Parent = workspace
+
+            game:GetService("Debris"):AddItem(bulletHole, 3)
+
+            local hitPlayer = getPlayerFromPart(hitPart)
             if hitPlayer and hitPlayer ~= LocalPlayer then
+                local targetHumanoid = hitPlayer.Character and hitPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if targetHumanoid then
+                    targetHumanoid:TakeDamage(25)
+                end
+
                 FlingActive = true
                 task.spawn(function()
                     KilasikFling(hitPlayer)
@@ -503,19 +574,22 @@ local function createPistol()
             end
         end
 
+        -- Трассер
         local beam = Instance.new("Part")
         beam.Anchored = true
         beam.CanCollide = false
         beam.Material = Enum.Material.Neon
-        beam.Color = Color3.fromRGB(255, 200, 50)
-        beam.Transparency = 0.3
-        beam.Size = Vector3.new(0.1, 0.1, 500)
-        beam.CFrame = CFrame.new(rayOrigin, rayOrigin + rayDirection) * CFrame.new(0, 0, -250)
+        beam.Color = Color3.fromRGB(255, 220, 80)
+        beam.Transparency = 0.2
+        local beamLength = (rayResult and (rayResult.Position - rayOrigin).Magnitude or 500)
+        beam.Size = Vector3.new(0.08, 0.08, beamLength)
+        beam.CFrame = CFrame.new(rayOrigin, rayOrigin + rayDirection) * CFrame.new(0, 0, -beamLength / 2)
         beam.Parent = workspace
 
         task.spawn(function()
-            for i = 1, 10 do
-                beam.Transparency = 0.3 + (i / 10) * 0.7
+            for i = 1, 8 do
+                beam.Transparency = 0.2 + (i / 8) * 0.8
+                beam.Size = Vector3.new(beam.Size.X * 0.9, beam.Size.Y * 0.9, beam.Size.Z)
                 task.wait(0.02)
             end
             beam:Destroy()
@@ -1110,7 +1184,7 @@ end)
 -- ====== КНОПКА 7: ПУЛЬТ ЯДЕРКИ С ПРИЦЕЛОМ ======
 local function cleanupNukeEffects()
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "NukeBomb" or obj.Name == "NukeShockwave" or obj.Name == "NukeMarker" or obj.Name == "NukeFireball" or obj.Name == "NoseCone" or obj.Name == "NukeSmokeRoot" or obj.Name == "NukeBeam") then
+        if obj:IsA("BasePart") and (obj.Name == "NukeBomb" or obj.Name == "NukeShockwave" or obj.Name == "NukeMarker" or obj.Name == "NukeFireball" or obj.Name == "NoseCone" or obj.Name == "NukeSmokeRoot" or obj.Name == "NukeBeam" or obj.Name == "NukeDebris") then
             obj:Destroy()
         elseif obj:IsA("ParticleEmitter") and obj.Name and obj.Name:find("Nuke") then
             obj:Destroy()
@@ -1181,6 +1255,7 @@ local function createNukeModel(spawnPos, targetPos)
 end
 
 local function createExplosionEffects(impactPos)
+    -- Ударная волна
     local shockwave = Instance.new("Part")
     shockwave.Name = "NukeShockwave"
     shockwave.Size = Vector3.new(10, 1, 10)
@@ -1193,42 +1268,44 @@ local function createExplosionEffects(impactPos)
     shockwave.Parent = workspace
 
     task.spawn(function()
-        for i = 1, 25 do
+        for i = 1, 30 do
             shockwave.Size = Vector3.new(shockwave.Size.X + 20, shockwave.Size.Y, shockwave.Size.Z + 20)
-            shockwave.Transparency = math.clamp(shockwave.Transparency + 0.04, 0, 1)
+            shockwave.Transparency = math.clamp(shockwave.Transparency + 0.03, 0, 1)
             task.wait(0.04)
         end
         shockwave:Destroy()
     end)
 
+    -- Огненный шар
     local fireball = Instance.new("Part")
     fireball.Name = "NukeFireball"
-    fireball.Size = Vector3.new(30, 30, 30)
+    fireball.Size = Vector3.new(40, 40, 40)
     fireball.Shape = Enum.PartType.Ball
     fireball.Color = Color3.fromRGB(255, 120, 0)
     fireball.Material = Enum.Material.Neon
-    fireball.Transparency = 0.2
+    fireball.Transparency = 0.15
     fireball.CanCollide = false
     fireball.Anchored = true
-    fireball.Position = impactPos + Vector3.new(0, 15, 0)
+    fireball.Position = impactPos + Vector3.new(0, 20, 0)
     fireball.Parent = workspace
 
     local flashLight = Instance.new("PointLight")
-    flashLight.Brightness = 20
-    flashLight.Range = 150
+    flashLight.Brightness = 30
+    flashLight.Range = 200
     flashLight.Color = Color3.fromRGB(255, 220, 150)
     flashLight.Parent = fireball
 
     task.spawn(function()
-        for i = 1, 15 do
-            fireball.Size = fireball.Size * 1.15
-            fireball.Transparency = math.clamp(fireball.Transparency + 0.05, 0, 1)
-            flashLight.Brightness = math.max(0, flashLight.Brightness - 1.5)
-            task.wait(0.06)
+        for i = 1, 20 do
+            fireball.Size = fireball.Size * 1.12
+            fireball.Transparency = math.clamp(fireball.Transparency + 0.04, 0, 1)
+            flashLight.Brightness = math.max(0, flashLight.Brightness - 1.2)
+            task.wait(0.05)
         end
         fireball:Destroy()
     end)
 
+    -- Дым
     local smokeRoot = Instance.new("Part")
     smokeRoot.Name = "NukeSmokeRoot"
     smokeRoot.Size = Vector3.new(1, 1, 1)
@@ -1241,50 +1318,72 @@ local function createExplosionEffects(impactPos)
     local emitter = Instance.new("ParticleEmitter")
     emitter.Name = "NukeSmokeEmitter"
     emitter.Texture = "rbxassetid://243660364"
-    emitter.Color = ColorSequence.new(Color3.fromRGB(150, 150, 150), Color3.fromRGB(50, 50, 50))
+    emitter.Color = ColorSequence.new(Color3.fromRGB(150, 150, 150), Color3.fromRGB(30, 30, 30))
     emitter.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 4),
+        NumberSequenceKeypoint.new(0, 5),
         NumberSequenceKeypoint.new(1, 0)
     })
     emitter.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.6),
+        NumberSequenceKeypoint.new(0, 0.5),
         NumberSequenceKeypoint.new(1, 1)
     })
-    emitter.Lifetime = NumberRange.new(3, 5)
-    emitter.Rate = 80
-    emitter.Speed = NumberRange.new(5, 15)
+    emitter.Lifetime = NumberRange.new(4, 7)
+    emitter.Rate = 100
+    emitter.Speed = NumberRange.new(8, 20)
     emitter.SpreadAngle = Vector2.new(90, 90)
     emitter.Rotation = NumberRange.new(-45, 45)
     emitter.RotSpeed = NumberRange.new(-180, 180)
     emitter.Parent = smokeRoot
 
-    task.delay(6, function()
+    task.delay(8, function()
         if smokeRoot then smokeRoot:Destroy() end
     end)
 
+    -- Звук
     local boom = Instance.new("Sound")
     boom.SoundId = "rbxassetid://130835443"
-    boom.Volume = 3
+    boom.Volume = 5
     boom.Parent = smokeRoot
     boom:Play()
 
+    -- УБИЙСТВО всех игроков в радиусе 150
     task.spawn(function()
         task.wait(0.1)
         for _, plr in ipairs(Players:GetPlayers()) do
             local pChar = plr.Character
             if pChar then
                 local pRoot = pChar:FindFirstChild("HumanoidRootPart")
-                if pRoot then
+                local humanoid = pChar:FindFirstChildOfClass("Humanoid")
+                if pRoot and humanoid then
                     local dist = (pRoot.Position - impactPos).Magnitude
-                    if dist < 100 then
-                        pRoot.AssemblyLinearVelocity = (pRoot.Position - impactPos).Unit * 200 + Vector3.new(0, 100, 0)
-                        local humanoid = pChar:FindFirstChildOfClass("Humanoid")
-                        if humanoid then
-                            humanoid:TakeDamage(50)
-                        end
+                    if dist < 150 then
+                        pRoot.AssemblyLinearVelocity = (pRoot.Position - impactPos).Unit * 300 + Vector3.new(0, 200, 0)
+                        humanoid.Health = 0
                     end
                 end
             end
+        end
+    end)
+
+    -- Осколки
+    task.spawn(function()
+        for i = 1, 20 do
+            local debris = Instance.new("Part")
+            debris.Name = "NukeDebris"
+            debris.Size = Vector3.new(math.random(1, 3), math.random(1, 3), math.random(1, 3))
+            debris.Color = Color3.fromRGB(80, 80, 80)
+            debris.Material = Enum.Material.Metal
+            debris.CanCollide = false
+            debris.Anchored = false
+            debris.Position = impactPos + Vector3.new(0, 5, 0)
+            debris.AssemblyLinearVelocity = Vector3.new(
+                math.random(-80, 80),
+                math.random(50, 150),
+                math.random(-80, 80)
+            )
+            debris.Parent = workspace
+
+            game:GetService("Debris"):AddItem(debris, 3)
         end
     end)
 end
