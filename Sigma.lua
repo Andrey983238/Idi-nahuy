@@ -43,7 +43,7 @@ local function makeDraggable(frame)
     end)
 end
 
--- ====== ПАНЕЛЬ С ТЕКСТОВЫМ ПОЛЕМ (для телепорта) ======
+-- ====== ПАНЕЛЬ С ТЕКСТОВЫМ ПОЛЕМ ======
 local function createPanelWithInput(yOffset, buttonText, actionFunc, placeholder)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 260, 0, 90)
@@ -94,7 +94,7 @@ local function createPanelWithInput(yOffset, buttonText, actionFunc, placeholder
     return frame
 end
 
--- ====== ПАНЕЛЬ БЕЗ ТЕКСТОВОГО ПОЛЯ (кнопка только) ======
+-- ====== ПАНЕЛЬ БЕЗ ТЕКСТОВОГО ПОЛЯ ======
 local function createPanelNoInput(yOffset, buttonText, actionFunc)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 260, 0, 50)
@@ -133,7 +133,7 @@ local function createPanelNoInput(yOffset, buttonText, actionFunc)
     return frame
 end
 
--- ====== ПОИСК HRP ======
+-- ====== УТИЛИТЫ ======
 local function getRoot(player)
     local char = player.Character
     if char then
@@ -142,7 +142,6 @@ local function getRoot(player)
     return nil
 end
 
--- ====== ПОИСК ИГРОКА ПО НИКУ ======
 local function findPlayer(name)
     if not name or name == "" then
         warn("Введите ник игрока!")
@@ -155,6 +154,43 @@ local function findPlayer(name)
     end
     warn("Игрок '" .. tostring(name) .. "' не найден!")
     return nil
+end
+
+-- Определение игрока по попавшей детали
+local function getPlayerFromPart(part)
+    if not part then return nil end
+    local char = part.Parent
+    if not char then return nil end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        return Players:GetPlayerFromCharacter(char)
+    end
+    return nil
+end
+
+-- Флинг через быстрое вращение вокруг цели
+local function flingPlayer(targetPlayer)
+    local targetRoot = getRoot(targetPlayer)
+    local localRoot = getRoot(LocalPlayer)
+    if not targetRoot or not localRoot then return end
+
+    local originalCFrame = localRoot.CFrame
+
+    local spinSpeed = math.rad(7200)
+    local elapsed = 0
+    local duration = 1.5
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function(dt)
+        elapsed += dt
+        if elapsed >= duration then
+            conn:Disconnect()
+            localRoot.CFrame = originalCFrame
+            print("Флинг завершён: " .. targetPlayer.Name)
+            return
+        end
+        localRoot.CFrame = targetRoot.CFrame * CFrame.Angles(0, spinSpeed * dt, 0)
+    end)
 end
 
 -- ====== ПАНЕЛЬ 1: ТЕЛЕПОРТ ======
@@ -171,14 +207,14 @@ createPanelWithInput(30, "ТП к игроку", function(text)
     end
 end)
 
--- ====== ПАНЕЛЬ 2: ВИЗУАЛЬНЫЙ ПИСТОЛЕТ ======
+-- ====== ПАНЕЛЬ 2: ВИЗУАЛЬНЫЙ ПИСТОЛЕТ СО ФЛИНГОМ ======
 local pistolGiven = false
 
 local function createPistol()
     local tool = Instance.new("Tool")
     tool.Name = "Визуал Пистолет"
     tool.RequiresHandle = true
-    tool.ToolTip = "Визуал Пистолет"
+    tool.ToolTip = "Стреляй — флинг!"
 
     local handle = Instance.new("Part")
     handle.Name = "Handle"
@@ -230,7 +266,12 @@ local function createPistol()
     weld3.Part1 = trigger
     weld3.Parent = handle
 
+    -- ====== ВЫСТРЕЛ С ФЛИНГОМ ======
     tool.Activated:Connect(function()
+        local localRoot = getRoot(LocalPlayer)
+        if not localRoot then return end
+
+        -- Вспышка
         local flash = Instance.new("Part")
         flash.Name = "Flash"
         flash.Size = Vector3.new(0.4, 0.4, 0.4)
@@ -248,12 +289,14 @@ local function createPistol()
         flashWeld.Part1 = flash
         flashWeld.Parent = handle
 
+        -- Звук выстрела
         local shootSound = Instance.new("Sound")
         shootSound.SoundId = "rbxassetid://130835443"
         shootSound.Volume = 1
         shootSound.Parent = handle
         shootSound:Play()
 
+        -- Затухание вспышки
         task.spawn(function()
             for i = 1, 8 do
                 if not flash or not flash.Parent then break end
@@ -264,10 +307,59 @@ local function createPistol()
             if flash then flash:Destroy() end
         end)
 
-        local localRoot = getRoot(LocalPlayer)
-        if localRoot then
-            localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
+        -- Отдача
+        localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
+
+        -- ====== RAYCAST — попадание по игроку ======
+        local mouse = LocalPlayer:GetMouse()
+        local rayOrigin = handle.Position
+        local rayDirection = (mouse.Hit.Position - rayOrigin).Unit * 500
+
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        -- Исключаем себя и части пистолета
+        local filterList = {LocalPlayer.Character}
+        for _, part in ipairs(tool:GetDescendants()) do
+            if part:IsA("BasePart") then
+                table.insert(filterList, part)
+            end
         end
+        raycastParams.FilterDescendantsInstances = filterList
+
+        local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+        if rayResult then
+            local hitPart = rayResult.Instance
+            local hitPlayer = getPlayerFromPart(hitPart)
+
+            if hitPlayer and hitPlayer ~= LocalPlayer then
+                print("Попадание по: " .. hitPlayer.Name .. " — флинг!")
+                flingPlayer(hitPlayer)
+            else
+                print("Промах или попадание не по игроку")
+            end
+        else
+            print("Промах")
+        end
+
+        -- Визуальный след луча
+        local beam = Instance.new("Part")
+        beam.Anchored = true
+        beam.CanCollide = false
+        beam.Material = Enum.Material.Neon
+        beam.Color = Color3.fromRGB(255, 200, 50)
+        beam.Transparency = 0.3
+        beam.Size = Vector3.new(0.1, 0.1, 500)
+        beam.CFrame = CFrame.new(rayOrigin, rayOrigin + rayDirection) * CFrame.new(0, 0, -250)
+        beam.Parent = workspace
+
+        task.spawn(function()
+            for i = 1, 10 do
+                beam.Transparency = 0.3 + (i / 10) * 0.7
+                task.wait(0.02)
+            end
+            beam:Destroy()
+        end)
     end)
 
     return tool
@@ -285,7 +377,7 @@ createPanelNoInput(130, "Выдать пистолет", function()
     local tool = createPistol()
     tool.Parent = backpack
     pistolGiven = true
-    print("Пистолет выдан! Экипируйте его из инвентаря.")
+    print("Пистолет выдан! Стреляйте в игрока — будет флинг.")
 end)
 
 -- ====== ПАНЕЛЬ 3: Я СИГМА (МУЗЫКА) ======
