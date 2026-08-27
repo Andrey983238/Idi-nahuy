@@ -4,7 +4,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- Forward-declare
+-- Forward-declare переменные
 local flying = false
 local flyConn = nil
 local flyPoseConn = nil
@@ -185,7 +185,7 @@ local function KilasikFling(TargetPlayer)
     if OldPos then
         repeat
             RootPart.CFrame = OldPos * CFrame.new(0, 0.5, 0)
-            Character:SetPrimaryPartCFrame(OldPos * CFrame.new(0, 0.5, 0))
+            Character:SetPrimaryPartCFrame(OldPos * CFrame.new(0, 0.5, 0)
             Humanoid:ChangeState("GettingUp")
             for _, part in pairs(Character:GetChildren()) do
                 if part:IsA("BasePart") then
@@ -1118,7 +1118,6 @@ local function cleanupNukeEffects()
     end
 end
 
--- Модель бомбы
 local function createNukeModel(spawnPos, targetPos)
     local bomb = Instance.new("Part")
     bomb.Name = "NukeBomb"
@@ -1130,7 +1129,6 @@ local function createNukeModel(spawnPos, targetPos)
     bomb.CFrame = CFrame.new(spawnPos, targetPos)
     bomb.Parent = workspace
 
-    -- Носовой конус
     local nose = Instance.new("Part")
     nose.Name = "NoseCone"
     nose.Size = Vector3.new(3, 4, 3)
@@ -1146,7 +1144,6 @@ local function createNukeModel(spawnPos, targetPos)
     noseWeld.Part1 = nose
     noseWeld.Parent = bomb
 
-    -- Стабилизаторы
     for i = 1, 4 do
         local fin = Instance.new("Part")
         fin.Size = Vector3.new(0.4, 2.5, 2.5)
@@ -1166,7 +1163,6 @@ local function createNukeModel(spawnPos, targetPos)
         weld.Parent = bomb
     end
 
-    -- Красная полоса
     local stripe = Instance.new("Part")
     stripe.Size = Vector3.new(3.2, 0.8, 3.2)
     stripe.Color = Color3.fromRGB(200, 30, 30)
@@ -1184,9 +1180,7 @@ local function createNukeModel(spawnPos, targetPos)
     return bomb
 end
 
--- Эффекты взрыва
 local function createExplosionEffects(impactPos)
-    -- Ударная волна
     local shockwave = Instance.new("Part")
     shockwave.Name = "NukeShockwave"
     shockwave.Size = Vector3.new(10, 1, 10)
@@ -1207,7 +1201,6 @@ local function createExplosionEffects(impactPos)
         shockwave:Destroy()
     end)
 
-    -- Огненный шар
     local fireball = Instance.new("Part")
     fireball.Name = "NukeFireball"
     fireball.Size = Vector3.new(30, 30, 30)
@@ -1236,7 +1229,6 @@ local function createExplosionEffects(impactPos)
         fireball:Destroy()
     end)
 
-    -- Дым
     local smokeRoot = Instance.new("Part")
     smokeRoot.Name = "NukeSmokeRoot"
     smokeRoot.Size = Vector3.new(1, 1, 1)
@@ -1270,14 +1262,12 @@ local function createExplosionEffects(impactPos)
         if smokeRoot then smokeRoot:Destroy() end
     end)
 
-    -- Звук взрыва
     local boom = Instance.new("Sound")
     boom.SoundId = "rbxassetid://130835443"
     boom.Volume = 3
     boom.Parent = smokeRoot
     boom:Play()
 
-    -- Отталкивание и урон
     task.spawn(function()
         task.wait(0.1)
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -1299,7 +1289,6 @@ local function createExplosionEffects(impactPos)
     end)
 end
 
--- Запуск ядерки с прицелом
 local nukeBtn = createMenuButton("ЯДЕРКА: ПРИЦЕЛ", Color3.fromRGB(200, 0, 0))
 
 nukeBtn.MouseButton1Click:Connect(function()
@@ -1311,7 +1300,7 @@ nukeBtn.MouseButton1Click:Connect(function()
 
     local mouse = LocalPlayer:GetMouse()
 
-    -- Маркер следует за мышью
+    -- Маркер
     local marker = Instance.new("Part")
     marker.Name = "NukeMarker"
     marker.Size = Vector3.new(16, 0.2, 16)
@@ -1333,6 +1322,7 @@ nukeBtn.MouseButton1Click:Connect(function()
     beam.Anchored = true
     beam.Parent = workspace
 
+    -- Маркер следует за мышью
     local followConn = RunService.RenderStepped:Connect(function()
         if not nukeAiming or not marker or not marker.Parent then
             followConn:Disconnect()
@@ -1341,7 +1331,7 @@ nukeBtn.MouseButton1Click:Connect(function()
         local unitRay = mouse.UnitRay
         local raycastParams = RaycastParams.new()
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, marker, beam}
         local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 5000, raycastParams)
         if result then
             local hitPos = result.Position
@@ -1350,13 +1340,28 @@ nukeBtn.MouseButton1Click:Connect(function()
         end
     end)
 
-    -- ЛКМ — запуск
-    local clickConn = mouse.Button1Down:Connect(function()
-        if not nukeAiming then return end
+    -- Ждём один кадр, чтобы клик по кнопке не запустил ядерку
+    task.wait()
+    if not nukeAiming then return end
+
+    -- ЛКМ — запуск (через UserInputService, игнорируем клики по GUI)
+    local clickConn
+    clickConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not nukeAiming then
+            clickConn:Disconnect()
+            return
+        end
+        if gameProcessed then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 
         nukeAiming = false
         clickConn:Disconnect()
         followConn:Disconnect()
+
+        if not marker or not marker.Parent then
+            nukeCooldown = false
+            return
+        end
 
         local targetPos = marker.Position
         marker:Destroy()
@@ -1370,14 +1375,12 @@ nukeBtn.MouseButton1Click:Connect(function()
         local spawnPos = targetPos + Vector3.new(0, 250, 0)
         local bomb = createNukeModel(spawnPos, targetPos)
 
-        -- Звук падения
         local whistle = Instance.new("Sound")
         whistle.SoundId = "rbxassetid://130835443"
         whistle.Volume = 1.5
         whistle.Parent = bomb
         whistle:Play()
 
-        -- Падение через Heartbeat (проверка позиции, не Touched)
         local fallSpeed = 50
         local gravity = 40
         local currentPos = spawnPos
@@ -1393,7 +1396,6 @@ nukeBtn.MouseButton1Click:Connect(function()
             fallSpeed = fallSpeed + gravity * dt
             bomb.CFrame = CFrame.new(currentPos, targetPos)
 
-            -- Бомба достигла цели
             if currentPos.Y <= targetPos.Y + 2 then
                 if fallConn then fallConn:Disconnect() end
                 bomb:Destroy()
@@ -1409,8 +1411,14 @@ nukeBtn.MouseButton1Click:Connect(function()
     end)
 
     -- ПКМ — отмена
-    local cancelConn = mouse.Button2Down:Connect(function()
-        if not nukeAiming then return end
+    local cancelConn
+    cancelConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not nukeAiming then
+            cancelConn:Disconnect()
+            return
+        end
+        if gameProcessed then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton2 then return end
 
         nukeAiming = false
         clickConn:Disconnect()
