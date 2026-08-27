@@ -38,13 +38,6 @@ local function makeDraggable(frame, dragBar)
                     startPos.X.Scale, startPos.X.Offset + delta.X,
                     startPos.Y.Scale, startPos.Y.Offset + delta.Y
                 )
-                -- Двигаем надпись вместе с окном
-                if titleLabel and titleLabel:GetAttribute("linked") then
-                    titleLabel.Position = UDim2.new(
-                        startPos.X.Scale, startPos.X.Offset + delta.X,
-                        startPos.Y.Scale, startPos.Y.Offset + delta.Y - 30
-                    )
-                end
             end
         end
     end)
@@ -116,30 +109,42 @@ local function flingPlayer(targetPlayer)
     end)
 end
 
--- ====== НАДПИСЬ НАД ОКНОМ ======
+-- ====== ГЛАВНОЕ ОКНО ======
+-- Внешний контейнер: надпись + окно вместе
+local windowContainer = Instance.new("Frame")
+windowContainer.Name = "WindowContainer"
+windowContainer.Size = UDim2.new(0, 280, 0, 360)
+windowContainer.Position = UDim2.new(0.5, -140, 0.5, -180)
+windowContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+windowContainer.BackgroundTransparency = 1
+windowContainer.BorderSizePixel = 0
+windowContainer.Active = false
+windowContainer.Parent = screenGui
+
+-- Надпись "Сигма чит" над окном
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "SigmaCheatLabel"
-titleLabel.Size = UDim2.new(0, 280, 0, 25)
-titleLabel.Position = UDim2.new(0, 50, 0, 55)
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
 titleLabel.BorderSizePixel = 0
 titleLabel.Text = "Сигма чит"
 titleLabel.TextColor3 = Color3.fromRGB(128, 0, 255)
 titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.TextSize = 20
-titleLabel.Parent = screenGui
+titleLabel.Parent = windowContainer
 
--- ====== ГЛАВНОЕ ОКНО-МЕНЮ ======
+-- Само окно меню
 local mainWindow = Instance.new("Frame")
 mainWindow.Name = "MainWindow"
-mainWindow.Size = UDim2.new(0, 280, 0, 320)
-mainWindow.Position = UDim2.new(0, 50, 0, 80)
+mainWindow.Size = UDim2.new(1, 0, 0, 330)
+mainWindow.Position = UDim2.new(0, 0, 0, 30)
 mainWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 mainWindow.BorderSizePixel = 0
 mainWindow.Active = true
-mainWindow.Parent = screenGui
+mainWindow.Parent = windowContainer
 
--- Заголовок (для перетаскивания)
+-- Заголовок окна (для перетаскивания)
 local titleBar = Instance.new("TextLabel")
 titleBar.Size = UDim2.new(1, 0, 0, 35)
 titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
@@ -151,12 +156,9 @@ titleBar.TextSize = 18
 titleBar.TextXAlignment = Enum.TextXAlignment.Left
 titleBar.Parent = mainWindow
 
--- Привязываем надпись к окну
-titleLabel:SetAttribute("linked", true)
+makeDraggable(windowContainer, titleBar)
 
-makeDraggable(mainWindow, titleBar)
-
--- Кнопка закрытия меню
+-- Кнопка закрытия меню (крестик)
 local closeMenuBtn = Instance.new("TextButton")
 closeMenuBtn.Size = UDim2.new(0, 30, 0, 30)
 closeMenuBtn.Position = UDim2.new(1, -32, 0, 2)
@@ -178,13 +180,18 @@ contentFrame.Parent = mainWindow
 local uiListLayout = Instance.new("UIListLayout")
 uiListLayout.Padding = UDim.new(0, 8)
 uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 uiListLayout.Parent = contentFrame
 
--- Кнопка для открытия/закрытия меню
+local uiPadding = Instance.new("UIPadding")
+uiPadding.PaddingTop = UDim.new(0, 8)
+uiPadding.Parent = contentFrame
+
+-- ====== КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ МЕНЮ ======
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 120, 0, 35)
-toggleBtn.Position = UDim2.new(0, 50, 0, 20)
-toggleBtn.Text = "Закрыть меню"
+toggleBtn.Size = UDim2.new(0, 130, 0, 35)
+toggleBtn.Position = UDim2.new(0, 20, 0, 20)
+toggleBtn.Text = "Скрыть меню"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 255)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.Font = Enum.Font.SourceSansBold
@@ -195,14 +202,12 @@ local menuOpen = true
 
 toggleBtn.MouseButton1Click:Connect(function()
     menuOpen = not menuOpen
-    mainWindow.Visible = menuOpen
-    titleLabel.Visible = menuOpen
-    toggleBtn.Text = menuOpen and "Закрыть меню" or "Открыть меню"
+    windowContainer.Visible = menuOpen
+    toggleBtn.Text = menuOpen and "Скрыть меню" or "Открыть меню"
 end)
 
 closeMenuBtn.MouseButton1Click:Connect(function()
-    mainWindow.Visible = false
-    titleLabel.Visible = false
+    windowContainer.Visible = false
     menuOpen = false
     toggleBtn.Text = "Открыть меню"
 end)
@@ -210,12 +215,13 @@ end)
 -- ====== ФУНКЦИЯ СОЗДАНИЯ КНОПКИ В МЕНЮ ======
 local function createMenuButton(text, actionFunc, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -20, 0, 35)
+    btn.Size = UDim2.new(1, -20, 0, 40)
     btn.BackgroundColor3 = color or Color3.fromRGB(50, 50, 70)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
     btn.TextSize = 16
     btn.Text = text
+    btn.AutoButtonColor = true
     btn.Parent = contentFrame
 
     btn.MouseButton1Click:Connect(function()
@@ -234,8 +240,8 @@ local function createInputWindow(title, actionFunc)
     end
 
     inputWindow = Instance.new("Frame")
-    inputWindow.Size = UDim2.new(0, 240, 0, 100)
-    inputWindow.Position = UDim2.new(0, 350, 0, 80)
+    inputWindow.Size = UDim2.new(0, 240, 0, 110)
+    inputWindow.Position = UDim2.new(0, 340, 0, 100)
     inputWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     inputWindow.BorderSizePixel = 0
     inputWindow.Active = true
@@ -271,7 +277,7 @@ local function createInputWindow(title, actionFunc)
 
     local textBox = Instance.new("TextBox")
     textBox.Size = UDim2.new(1, -20, 0, 28)
-    textBox.Position = UDim2.new(0, 10, 0, 32)
+    textBox.Position = UDim2.new(0, 10, 0, 35)
     textBox.PlaceholderText = "Введите ник игрока..."
     textBox.Text = ""
     textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
@@ -283,7 +289,7 @@ local function createInputWindow(title, actionFunc)
 
     local submitBtn = Instance.new("TextButton")
     submitBtn.Size = UDim2.new(1, -20, 0, 28)
-    submitBtn.Position = UDim2.new(0, 10, 0, 66)
+    submitBtn.Position = UDim2.new(0, 10, 0, 72)
     submitBtn.Text = "Выполнить"
     submitBtn.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
     submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -357,18 +363,18 @@ local function createPistol()
     weld2.Part1 = grip
     weld2.Parent = handle
 
-    local trigger = Instance.new("Part")
-    trigger.Name = "Trigger"
-    trigger.Size = Vector3.new(0.12, 0.25, 0.18)
-    trigger.Color = Color3.fromRGB(50, 50, 55)
-    trigger.Material = Enum.Material.Metal
-    trigger.CanCollide = false
-    trigger.CFrame = handle.CFrame * CFrame.new(0, -0.1, -0.25)
-    trigger.Parent = tool
+    local triggerPart = Instance.new("Part")
+    triggerPart.Name = "Trigger"
+    triggerPart.Size = Vector3.new(0.12, 0.25, 0.18)
+    triggerPart.Color = Color3.fromRGB(50, 50, 55)
+    triggerPart.Material = Enum.Material.Metal
+    triggerPart.CanCollide = false
+    triggerPart.CFrame = handle.CFrame * CFrame.new(0, -0.1, -0.25)
+    triggerPart.Parent = tool
 
     local weld3 = Instance.new("WeldConstraint")
     weld3.Part0 = handle
-    weld3.Part1 = trigger
+    weld3.Part1 = triggerPart
     weld3.Parent = handle
 
     tool.Activated:Connect(function()
@@ -398,7 +404,6 @@ local function createPistol()
         shootSound.Parent = handle
         shootSound:Play()
 
-        -- Затухание вспышки
         task.spawn(function()
             for i = 1, 8 do
                 if not flash or not flash.Parent then break end
@@ -409,7 +414,6 @@ local function createPistol()
             if flash then flash:Destroy() end
         end)
 
-        -- Отдача
         localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
 
         -- Raycast
@@ -645,10 +649,10 @@ createMenuButton("Краш игры", function()
     end)
 end, Color3.fromRGB(160, 30, 30))
 
--- ====== КНОПКА ЗАКРЫТИЯ ВСЕГО GUI ======
+-- ====== КНОПКА ЗАКРЫТИЯ СКРИПТА ======
 local killBtn = Instance.new("TextButton")
-killBtn.Size = UDim2.new(0, 120, 0, 30)
-killBtn.Position = UDim2.new(0, 50, 0, 60)
+killBtn.Size = UDim2.new(0, 130, 0, 30)
+killBtn.Position = UDim2.new(0, 20, 0, 60)
 killBtn.Text = "Закрыть скрипт"
 killBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 killBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
