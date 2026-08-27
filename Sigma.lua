@@ -4,7 +4,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- Forward-declare переменные
+-- Forward-declare
 local flying = false
 local flyConn = nil
 local flyPoseConn = nil
@@ -14,7 +14,6 @@ local walkSpeed = 16
 local speedMaintainConn = nil
 local nukeCooldown = false
 local nukeAiming = false
-local nukeMarkerConn = nil
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
@@ -1111,7 +1110,7 @@ end)
 -- ====== КНОПКА 7: ПУЛЬТ ЯДЕРКИ С ПРИЦЕЛОМ ======
 local function cleanupNukeEffects()
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "NukeBomb" or obj.Name == "NukeShockwave" or obj.Name == "NukeMarker" or obj.Name == "NukeFireball" or obj.Name == "NoseCone" or obj.Name == "NukeSmoke") then
+        if obj:IsA("BasePart") and (obj.Name == "NukeBomb" or obj.Name == "NukeShockwave" or obj.Name == "NukeMarker" or obj.Name == "NukeFireball" or obj.Name == "NoseCone" or obj.Name == "NukeSmokeRoot" or obj.Name == "NukeBeam") then
             obj:Destroy()
         elseif obj:IsA("ParticleEmitter") and obj.Name and obj.Name:find("Nuke") then
             obj:Destroy()
@@ -1119,45 +1118,11 @@ local function cleanupNukeEffects()
     end
 end
 
--- Создание прицела-маркера на земле
-local function createTargetMarker(position)
-    -- Удаляем старый маркер
-    local old = workspace:FindFirstChild("NukeMarker")
-    if old then old:Destroy() end
-
-    local marker = Instance.new("Part")
-    marker.Name = "NukeMarker"
-    marker.Size = Vector3.new(20, 0.2, 20)
-    marker.Position = position + Vector3.new(0, 1, 0)
-    marker.Color = Color3.fromRGB(255, 0, 0)
-    marker.Material = Enum.Material.Neon
-    marker.Transparency = 0.5
-    marker.CanCollide = false
-    marker.Anchored = true
-    marker.Shape = Enum.PartType.Cylinder
-    marker.Orientation = Vector3.new(0, 0, 90)
-    marker.Parent = workspace
-
-    -- Светящийся луч вверх
-    local beam = Instance.new("Part")
-    beam.Name = "NukeMarker"
-    beam.Size = Vector3.new(0.2, 300, 0.2)
-    beam.Position = position + Vector3.new(0, 150, 0)
-    beam.Color = Color3.fromRGB(255, 50, 50)
-    beam.Material = Enum.Material.Neon
-    beam.Transparency = 0.6
-    beam.CanCollide = false
-    beam.Anchored = true
-    beam.Parent = workspace
-
-    return marker
-end
-
--- Создание модели бомбы
+-- Модель бомбы
 local function createNukeModel(spawnPos, targetPos)
     local bomb = Instance.new("Part")
     bomb.Name = "NukeBomb"
-    bomb.Size = Vector3.new(4, 10, 4)
+    bomb.Size = Vector3.new(3, 8, 3)
     bomb.Color = Color3.fromRGB(80, 80, 90)
     bomb.Material = Enum.Material.Metal
     bomb.CanCollide = false
@@ -1168,12 +1133,12 @@ local function createNukeModel(spawnPos, targetPos)
     -- Носовой конус
     local nose = Instance.new("Part")
     nose.Name = "NoseCone"
-    nose.Size = Vector3.new(4, 5, 4)
+    nose.Size = Vector3.new(3, 4, 3)
     nose.Color = Color3.fromRGB(60, 60, 70)
     nose.Material = Enum.Material.Plastic
     nose.CanCollide = false
     nose.Anchored = false
-    nose.CFrame = bomb.CFrame * CFrame.new(0, 5, 0)
+    nose.CFrame = bomb.CFrame * CFrame.new(0, 4, 0)
     nose.Parent = bomb
 
     local noseWeld = Instance.new("WeldConstraint")
@@ -1184,14 +1149,14 @@ local function createNukeModel(spawnPos, targetPos)
     -- Стабилизаторы
     for i = 1, 4 do
         local fin = Instance.new("Part")
-        fin.Size = Vector3.new(0.5, 3, 3)
+        fin.Size = Vector3.new(0.4, 2.5, 2.5)
         fin.Color = Color3.fromRGB(50, 50, 60)
         fin.Material = Enum.Material.Metal
         fin.CanCollide = false
         fin.Anchored = false
 
         local angle = (i - 1) * 90
-        local offset = CFrame.Angles(0, math.rad(angle), 0) * CFrame.new(2.5, -4, 0)
+        local offset = CFrame.Angles(0, math.rad(angle), 0) * CFrame.new(2, -3, 0)
         fin.CFrame = bomb.CFrame * offset
         fin.Parent = bomb
 
@@ -1203,12 +1168,12 @@ local function createNukeModel(spawnPos, targetPos)
 
     -- Красная полоса
     local stripe = Instance.new("Part")
-    stripe.Size = Vector3.new(4.2, 1, 4.2)
+    stripe.Size = Vector3.new(3.2, 0.8, 3.2)
     stripe.Color = Color3.fromRGB(200, 30, 30)
     stripe.Material = Enum.Material.Neon
     stripe.CanCollide = false
     stripe.Anchored = false
-    stripe.CFrame = bomb.CFrame * CFrame.new(0, 0, 0)
+    stripe.CFrame = bomb.CFrame
     stripe.Parent = bomb
 
     local stripeWeld = Instance.new("WeldConstraint")
@@ -1219,110 +1184,109 @@ local function createNukeModel(spawnPos, targetPos)
     return bomb
 end
 
--- Эффекты взрыва — все в точке падения
+-- Эффекты взрыва
 local function createExplosionEffects(impactPos)
-    -- 1. Ударная волна (плоская, расширяется)
+    -- Ударная волна
     local shockwave = Instance.new("Part")
     shockwave.Name = "NukeShockwave"
-    shockwave.Size = Vector3.new(1, 1, 1)
-    shockwave.Position = impactPos + Vector3.new(0, 1, 0)
-    shockwave.Color = Color3.fromRGB(255, 200, 50)
+    shockwave.Size = Vector3.new(10, 1, 10)
+    shockwave.Color = Color3.fromRGB(255, 100, 100)
     shockwave.Material = Enum.Material.Neon
     shockwave.Transparency = 0.3
     shockwave.CanCollide = false
     shockwave.Anchored = true
-    shockwave.Shape = Enum.PartType.Cylinder
-    shockwave.Orientation = Vector3.new(0, 0, 90)
+    shockwave.Position = impactPos + Vector3.new(0, 1, 0)
     shockwave.Parent = workspace
 
-    -- 2. Огненный шар (растёт и исчезает)
+    task.spawn(function()
+        for i = 1, 25 do
+            shockwave.Size = Vector3.new(shockwave.Size.X + 20, shockwave.Size.Y, shockwave.Size.Z + 20)
+            shockwave.Transparency = math.clamp(shockwave.Transparency + 0.04, 0, 1)
+            task.wait(0.04)
+        end
+        shockwave:Destroy()
+    end)
+
+    -- Огненный шар
     local fireball = Instance.new("Part")
     fireball.Name = "NukeFireball"
-    fireball.Size = Vector3.new(10, 10, 10)
+    fireball.Size = Vector3.new(30, 30, 30)
     fireball.Shape = Enum.PartType.Ball
-    fireball.Position = impactPos
     fireball.Color = Color3.fromRGB(255, 120, 0)
     fireball.Material = Enum.Material.Neon
     fireball.Transparency = 0.2
     fireball.CanCollide = false
     fireball.Anchored = true
+    fireball.Position = impactPos + Vector3.new(0, 15, 0)
     fireball.Parent = workspace
 
-    -- Свет вспышки
     local flashLight = Instance.new("PointLight")
-    flashLight.Brightness = 30
-    flashLight.Range = 200
+    flashLight.Brightness = 20
+    flashLight.Range = 150
     flashLight.Color = Color3.fromRGB(255, 220, 150)
     flashLight.Parent = fireball
 
-    -- 3. Дым на месте взрыва
+    task.spawn(function()
+        for i = 1, 15 do
+            fireball.Size = fireball.Size * 1.15
+            fireball.Transparency = math.clamp(fireball.Transparency + 0.05, 0, 1)
+            flashLight.Brightness = math.max(0, flashLight.Brightness - 1.5)
+            task.wait(0.06)
+        end
+        fireball:Destroy()
+    end)
+
+    -- Дым
     local smokeRoot = Instance.new("Part")
-    smokeRoot.Name = "NukeSmoke"
-    smokeRoot.Position = impactPos
-    smokeRoot.Anchored = true
-    smokeRoot.CanCollide = false
+    smokeRoot.Name = "NukeSmokeRoot"
+    smokeRoot.Size = Vector3.new(1, 1, 1)
     smokeRoot.Transparency = 1
+    smokeRoot.CanCollide = false
+    smokeRoot.Anchored = true
+    smokeRoot.Position = impactPos
     smokeRoot.Parent = workspace
 
-    local smoke = Instance.new("ParticleEmitter")
-    smoke.Name = "NukeSmokeEmitter"
-    smoke.Texture = "rbxassetid://243660364"
-    smoke.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 80, 80)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30)),
+    local emitter = Instance.new("ParticleEmitter")
+    emitter.Name = "NukeSmokeEmitter"
+    emitter.Texture = "rbxassetid://243660364"
+    emitter.Color = ColorSequence.new(Color3.fromRGB(150, 150, 150), Color3.fromRGB(50, 50, 50))
+    emitter.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 4),
+        NumberSequenceKeypoint.new(1, 0)
     })
-    smoke.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 5),
-        NumberSequenceKeypoint.new(1, 25),
+    emitter.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.6),
+        NumberSequenceKeypoint.new(1, 1)
     })
-    smoke.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.3),
-        NumberSequenceKeypoint.new(1, 1),
-    })
-    smoke.Lifetime = NumberRange.new(2, 4)
-    smoke.Rate = 80
-    smoke.Speed = NumberRange.new(10, 20)
-    smoke.SpreadAngle = Vector2.new(45, 45)
-    smoke.Rotation = NumberRange.new(0, 360)
-    smoke.RotSpeed = NumberRange.new(50, 100)
-    smoke.Parent = smokeRoot
+    emitter.Lifetime = NumberRange.new(3, 5)
+    emitter.Rate = 80
+    emitter.Speed = NumberRange.new(5, 15)
+    emitter.SpreadAngle = Vector2.new(90, 90)
+    emitter.Rotation = NumberRange.new(-45, 45)
+    emitter.RotSpeed = NumberRange.new(-180, 180)
+    emitter.Parent = smokeRoot
+
+    task.delay(6, function()
+        if smokeRoot then smokeRoot:Destroy() end
+    end)
 
     -- Звук взрыва
-    local boomSound = Instance.new("Sound")
-    boomSound.SoundId = "rbxassetid://2734842869"
-    boomSound.Volume = 3
-    boomSound.Parent = workspace
-    boomSound:Play()
+    local boom = Instance.new("Sound")
+    boom.SoundId = "rbxassetid://130835443"
+    boom.Volume = 3
+    boom.Parent = smokeRoot
+    boom:Play()
 
-    local blastRadius = 100
-
-    -- Анимация расширения
-    local expandConn = nil
-    expandConn = RunService.Heartbeat:Connect(function(dt)
-        if not shockwave or not shockwave.Parent then
-            if expandConn then expandConn:Disconnect() end
-            return
-        end
-
-        -- Волна расширяется
-        shockwave.Size = shockwave.Size + Vector3.new(15 * dt, 0, 15 * dt)
-        shockwave.Transparency = math.min(1, shockwave.Transparency + 0.03 * dt)
-
-        -- Огненный шар растёт
-        if fireball and fireball.Parent then
-            fireball.Size = fireball.Size + Vector3.new(20 * dt, 20 * dt, 20 * dt)
-            fireball.Transparency = math.min(1, fireball.Transparency + 0.02 * dt)
-            flashLight.Brightness = math.max(0, flashLight.Brightness - 0.5 * dt)
-        end
-
-        -- Отталкивание и урон
+    -- Отталкивание и урон
+    task.spawn(function()
+        task.wait(0.1)
         for _, plr in ipairs(Players:GetPlayers()) do
             local pChar = plr.Character
             if pChar then
                 local pRoot = pChar:FindFirstChild("HumanoidRootPart")
                 if pRoot then
                     local dist = (pRoot.Position - impactPos).Magnitude
-                    if dist < shockwave.Size.X / 2 and dist > 1 then
+                    if dist < 100 then
                         pRoot.AssemblyLinearVelocity = (pRoot.Position - impactPos).Unit * 200 + Vector3.new(0, 100, 0)
                         local humanoid = pChar:FindFirstChildOfClass("Humanoid")
                         if humanoid then
@@ -1332,31 +1296,13 @@ local function createExplosionEffects(impactPos)
                 end
             end
         end
-
-        -- Завершение
-        if shockwave.Size.X > blastRadius * 3 then
-            shockwave:Destroy()
-            expandConn:Disconnect()
-
-            -- Огненный шар исчезает
-            task.spawn(function()
-                task.wait(1)
-                if fireball and fireball.Parent then fireball:Destroy() end
-            end)
-
-            -- Дым постепенно прекращается
-            task.spawn(function()
-                task.wait(3)
-                smoke.Enabled = false
-                task.wait(4)
-                if smokeRoot and smokeRoot.Parent then smokeRoot:Destroy() end
-            end)
-        end
     end)
 end
 
 -- Запуск ядерки с прицелом
-local function startNukeAiming()
+local nukeBtn = createMenuButton("ЯДЕРКА: ПРИЦЕЛ", Color3.fromRGB(200, 0, 0))
+
+nukeBtn.MouseButton1Click:Connect(function()
     if nukeCooldown then return end
     if nukeAiming then return end
     nukeAiming = true
@@ -1366,48 +1312,55 @@ local function startNukeAiming()
     local mouse = LocalPlayer:GetMouse()
 
     -- Маркер следует за мышью
-    local followConn = nil
-    followConn = RunService.RenderStepped:Connect(function()
-        if not nukeAiming then
+    local marker = Instance.new("Part")
+    marker.Name = "NukeMarker"
+    marker.Size = Vector3.new(16, 0.2, 16)
+    marker.Color = Color3.fromRGB(255, 0, 0)
+    marker.Material = Enum.Material.Neon
+    marker.Transparency = 0.4
+    marker.CanCollide = false
+    marker.Anchored = true
+    marker.Shape = Enum.PartType.Cylinder
+    marker.Parent = workspace
+
+    local beam = Instance.new("Part")
+    beam.Name = "NukeBeam"
+    beam.Size = Vector3.new(0.15, 200, 0.15)
+    beam.Color = Color3.fromRGB(255, 50, 50)
+    beam.Material = Enum.Material.Neon
+    beam.Transparency = 0.5
+    beam.CanCollide = false
+    beam.Anchored = true
+    beam.Parent = workspace
+
+    local followConn = RunService.RenderStepped:Connect(function()
+        if not nukeAiming or not marker or not marker.Parent then
             followConn:Disconnect()
             return
         end
-        local mousePos = mouse.Hit.Position
-        local old = workspace:FindFirstChild("NukeMarker")
-        if old then old:Destroy() end
-
-        local marker = Instance.new("Part")
-        marker.Name = "NukeMarker"
-        marker.Size = Vector3.new(15, 0.2, 15)
-        marker.Position = mousePos + Vector3.new(0, 1, 0)
-        marker.Color = Color3.fromRGB(255, 50, 50)
-        marker.Material = Enum.Material.Neon
-        marker.Transparency = 0.5
-        marker.CanCollide = false
-        marker.Anchored = true
-        marker.Shape = Enum.PartType.Cylinder
-        marker.Orientation = Vector3.new(0, 0, 90)
-        marker.Parent = workspace
+        local unitRay = mouse.UnitRay
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 5000, raycastParams)
+        if result then
+            local hitPos = result.Position
+            marker.Position = hitPos + Vector3.new(0, 0.1, 0)
+            beam.Position = hitPos + Vector3.new(0, 100, 0)
+        end
     end)
 
-    -- Клик = запуск бомбы
-    local clickConn = nil
-    clickConn = mouse.Button1Down:Connect(function()
-        if not nukeAiming then
-            clickConn:Disconnect()
-            return
-        end
+    -- ЛКМ — запуск
+    local clickConn = mouse.Button1Down:Connect(function()
+        if not nukeAiming then return end
 
         nukeAiming = false
         clickConn:Disconnect()
         followConn:Disconnect()
 
-        local targetPos = mouse.Hit.Position
-
-        -- Удаляем маркер
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name == "NukeMarker" then obj:Destroy() end
-        end
+        local targetPos = marker.Position
+        marker:Destroy()
+        beam:Destroy()
 
         nukeCooldown = true
         nukeBtn.Text = "ЯДЕРКА ЛЕТИТ!"
@@ -1424,7 +1377,7 @@ local function startNukeAiming()
         whistle.Parent = bomb
         whistle:Play()
 
-        -- Падение
+        -- Падение через Heartbeat (проверка позиции, не Touched)
         local fallSpeed = 50
         local gravity = 40
         local currentPos = spawnPos
@@ -1438,55 +1391,38 @@ local function startNukeAiming()
 
             currentPos = currentPos - Vector3.new(0, fallSpeed * dt, 0)
             fallSpeed = fallSpeed + gravity * dt
-
-            -- Направление к цели
-            local direction = (targetPos - currentPos).Unit
             bomb.CFrame = CFrame.new(currentPos, targetPos)
 
-            if currentPos.Y <= targetPos.Y + 5 then
+            -- Бомба достигла цели
+            if currentPos.Y <= targetPos.Y + 2 then
                 if fallConn then fallConn:Disconnect() end
                 bomb:Destroy()
 
-                -- Эффекты взрыва в точке падения
                 createExplosionEffects(targetPos)
 
-                -- Кулдаун
                 task.wait(5)
                 nukeCooldown = false
-                nukeBtn.Text = "ПУЛЬТ: ЯДЕРКА"
-                nukeBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 255)
+                nukeBtn.Text = "ЯДЕРКА: ПРИЦЕЛ"
+                nukeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
             end
         end)
     end)
 
-    -- Отмена по правому клику
-    local cancelConn = nil
-    cancelConn = mouse.Button2Down:Connect(function()
-        if not nukeAiming then
-            cancelConn:Disconnect()
-            return
-        end
+    -- ПКМ — отмена
+    local cancelConn = mouse.Button2Down:Connect(function()
+        if not nukeAiming then return end
+
         nukeAiming = false
         clickConn:Disconnect()
         followConn:Disconnect()
         cancelConn:Disconnect()
 
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name == "NukeMarker" then obj:Destroy() end
-        end
+        if marker then marker:Destroy() end
+        if beam then beam:Destroy() end
 
-        nukeBtn.Text = "ПУЛЬТ: ЯДЕРКА"
-        nukeBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 255)
+        nukeBtn.Text = "ЯДЕРКА: ПРИЦЕЛ"
+        nukeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     end)
-end
-
-local nukeBtn = createMenuButton("ПУЛЬТ: ЯДЕРКА", Color3.fromRGB(128, 0, 255))
-nukeBtn.MouseButton1Click:Connect(function()
-    if nukeCooldown then
-        warn("Ядерка на кулдауне!")
-        return
-    end
-    startNukeAiming()
 end)
 
 -- ====== КНОПКА 8: КРАШ ======
