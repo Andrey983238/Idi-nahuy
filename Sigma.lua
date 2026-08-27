@@ -8,6 +8,7 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ====== ПЕРЕТАСКИВАНИЕ ======
@@ -38,7 +39,7 @@ local function makeDraggable(frame, dragBar)
     end)
 end
 
--- ====== УТИЛИТЫ ======
+-- ====== УТИЛИТЫ (всегда берут текущий персонаж) ======
 local function getRoot(player)
     local char = player.Character
     if char then
@@ -55,20 +56,6 @@ local function getHumanoid(player)
     return nil
 end
 
-local function findPlayer(name)
-    if not name or name == "" then
-        warn("Введите ник игрока!")
-        return nil
-    end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr.Name:lower():find(name:lower()) then
-            return plr
-        end
-    end
-    warn("Игрок '" .. tostring(name) .. "' не найден!")
-    return nil
-end
-
 local function getPlayerFromPart(part)
     if not part then return nil end
     local char = part.Parent
@@ -80,50 +67,59 @@ local function getPlayerFromPart(part)
     return nil
 end
 
--- ====== ФЛИНГ (исправленный — через BodyAngularVelocity) ======
-local flingConn = nil
-local flingBAV = nil
+-- ====== ФЛИНГ (применяется к ЦЕЛИ, не к вам) ======
+local flingConns = {}
 
 local function flingPlayer(targetPlayer)
-    -- Останавливаем предыдущий флинг если есть
-    if flingConn then flingConn:Disconnect() flingConn = nil end
-    if flingBAV then flingBAV:Destroy() flingBAV = nil end
+    -- Останавливаем старые
+    for _, c in pairs(flingConns) do
+        if c then c:Disconnect() end
+    end
+    flingConns = {}
 
     local targetRoot = getRoot(targetPlayer)
-    local localRoot = getRoot(LocalPlayer)
-    if not targetRoot or not localRoot then return end
+    if not targetRoot then return end
 
-    local originalCFrame = localRoot.CFrame
+    -- BodyAngularVelocity на ЦЕЛЬ
+    local bav = Instance.new("BodyAngularVelocity")
+    bav.AngularVelocity = Vector3.new(0, 9999, 0)
+    bav.MaxTorque = Vector3.new(0, math.huge, 0)
+    bav.P = math.huge
+    bav.Name = "FlingBAV"
+    bav.Parent = targetRoot
 
-    -- BodyAngularVelocity — реальное физическое вращение
-    flingBAV = Instance.new("BodyAngularVelocity")
-    flingBAV.AngularVelocity = Vector3.new(0, 9999, 0)
-    flingBAV.MaxTorque = Vector3.new(0, math.huge, 0)
-    flingBAV.P = math.huge
-    flingBAV.Name = "FlingBAV"
-    flingBAV.Parent = localRoot
+    -- BodyVelocity — подбрасываем ЦЕЛЬ вверх
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.new(math.random(-50, 50), 300, math.random(-50, 50))
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.P = math.huge
+    bv.Name = "FlingBV"
+    bv.Parent = targetRoot
 
     local elapsed = 0
     local duration = 3
 
-    flingConn = RunService.Heartbeat:Connect(function(dt)
+    flingConns[1] = RunService.Heartbeat:Connect(function(dt)
         elapsed += dt
         if elapsed >= duration then
-            flingConn:Disconnect()
-            flingConn = nil
-            if flingBAV then
-                flingBAV:Destroy()
-                flingBAV = nil
+            for _, c in pairs(flingConns) do
+                if c then c:Disconnect() end
             end
-            -- Возвращаемся на исходную позицию
-            localRoot.CFrame = originalCFrame
+            flingConns = {}
+            if bav then bav:Destroy() end
+            if bv then bv:Destroy() end
             print("Флинг завершён: " .. targetPlayer.Name)
             return
         end
-        -- Постоянно телепортируемся в цель — держим контакт
-        local currentTarget = getRoot(targetPlayer)
-        if currentTarget then
-            localRoot.CFrame = currentTarget.CFrame * CFrame.new(0, 0, 0)
+        -- Поддерживаем вращение и подбрасывание
+        local root = getRoot(targetPlayer)
+        if root then
+            if not root:FindFirstChild("FlingBAV") then
+                bav.Parent = root
+            end
+            if not root:FindFirstChild("FlingBV") then
+                bv.Parent = root
+            end
         end
     end)
 
@@ -242,54 +238,81 @@ local function createMenuButton(text, color)
     return btn
 end
 
--- ====== КНОПКА 1: ТЕЛЕПОРТ ======
+-- ====== КНОПКА 1: ТЕЛЕПОРТ (список игроков) ======
 local tpBtn = createMenuButton("ТП к игроку", Color3.fromRGB(40, 100, 160))
 
-local tpInputContainer = Instance.new("Frame")
-tpInputContainer.Size = UDim2.new(1, -20, 0, 70)
-tpInputContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-tpInputContainer.BorderSizePixel = 0
-tpInputContainer.Visible = false
-tpInputContainer.Parent = contentFrame
+-- Контейнер для списка игроков
+local tpListContainer = Instance.new("ScrollingFrame")
+tpListContainer.Size = UDim2.new(1, -20, 0, 150)
+tpListContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+tpListContainer.BorderSizePixel = 0
+tpListContainer.ScrollBarThickness = 4
+tpListContainer.Visible = false
+tpListContainer.Parent = contentFrame
 
-local tpTextBox = Instance.new("TextBox")
-tpTextBox.Size = UDim2.new(1, -10, 0, 30)
-tpTextBox.Position = UDim2.new(0, 5, 0, 5)
-tpTextBox.PlaceholderText = "Введите ник игрока..."
-tpTextBox.Text = ""
-tpTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-tpTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-tpTextBox.Font = Enum.Font.SourceSans
-tpTextBox.TextSize = 16
-tpTextBox.ClearTextOnFocus = false
-tpTextBox.Parent = tpInputContainer
+local tpListLayout = Instance.new("UIListLayout")
+tpListLayout.Padding = UDim.new(0, 3)
+tpListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tpListLayout.Parent = tpListContainer
 
-local tpSubmitBtn = Instance.new("TextButton")
-tpSubmitBtn.Size = UDim2.new(1, -10, 0, 28)
-tpSubmitBtn.Position = UDim2.new(0, 5, 0, 38)
-tpSubmitBtn.Text = "Телепортироваться"
-tpSubmitBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 160)
-tpSubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-tpSubmitBtn.Font = Enum.Font.SourceSansBold
-tpSubmitBtn.TextSize = 14
-tpSubmitBtn.Parent = tpInputContainer
+local tpListPadding = Instance.new("UIPadding")
+tpListPadding.PaddingTop = UDim.new(0, 3)
+tpListPadding.PaddingBottom = UDim.new(0, 3)
+tpListPadding.Parent = tpListContainer
 
-local tpInputVisible = false
+local tpListVisible = false
+local tpListButtons = {}
+
+local function refreshTpList()
+    -- Очищаем старые кнопки
+    for _, btn in pairs(tpListButtons) do
+        if btn then btn:Destroy() end
+    end
+    tpListButtons = {}
+
+    -- Добавляем текущих игроков
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -6, 0, 28)
+            btn.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Font = Enum.Font.SourceSans
+            btn.TextSize = 14
+            btn.Text = "  " .. plr.Name
+            btn.Parent = tpListContainer
+
+            btn.MouseButton1Click:Connect(function()
+                local targetRoot = getRoot(plr)
+                local localRoot = getRoot(LocalPlayer)
+                if targetRoot and localRoot then
+                    localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
+                    print("ТП к: " .. plr.Name)
+                end
+            end)
+
+            table.insert(tpListButtons, btn)
+        end
+    end
+
+    -- Обновляем размер
+    tpListContainer.CanvasSize = UDim2.new(0, 0, 0, #tpListButtons * 31 + 6)
+end
 
 tpBtn.MouseButton1Click:Connect(function()
-    tpInputVisible = not tpInputVisible
-    tpInputContainer.Visible = tpInputVisible
+    tpListVisible = not tpListVisible
+    tpListContainer.Visible = tpListVisible
+    if tpListVisible then
+        refreshTpList()
+    end
 end)
 
-tpSubmitBtn.MouseButton1Click:Connect(function()
-    local targetPlayer = findPlayer(tpTextBox.Text)
-    if not targetPlayer then return end
-    local targetRoot = getRoot(targetPlayer)
-    local localRoot = getRoot(LocalPlayer)
-    if targetRoot and localRoot then
-        localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
-        print("ТП к: " .. targetPlayer.Name)
-    end
+-- Обновляем список при входе/выходе игроков
+Players.PlayerAdded:Connect(function()
+    if tpListVisible then refreshTpList() end
+end)
+Players.PlayerRemoving:Connect(function()
+    if tpListVisible then refreshTpList() end
 end)
 
 -- ====== КНОПКА 2: ПИСТОЛЕТ ======
@@ -411,8 +434,6 @@ local function createPistol()
             local hitPlayer = getPlayerFromPart(rayResult.Instance)
             if hitPlayer and hitPlayer ~= LocalPlayer then
                 print("Попадание по: " .. hitPlayer.Name .. " — флинг!")
-                -- Небольшая задержка чтобы отдача не мешала
-                task.wait(0.1)
                 flingPlayer(hitPlayer)
             else
                 print("Промах")
@@ -463,23 +484,68 @@ local sigmaSound = nil
 local sigmaPlaying = false
 local sigmaAuraConn = nil
 local sigmaPoseConn = nil
-local sigmaHighlight = nil
-local sigmaLight = nil
-local sigmaParticles = nil
 
-local function removeSigmaEffects()
-    if sigmaHighlight then sigmaHighlight:Destroy() sigmaHighlight = nil end
-    if sigmaLight then sigmaLight:Destroy() sigmaLight = nil end
-    if sigmaParticles then sigmaParticles:Destroy() sigmaParticles = nil end
+local function removeSigmaEffectsFromChar(char)
+    if not char then return end
+    local hl = char:FindFirstChild("SigmaHighlight")
+    if hl then hl:Destroy() end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        local light = root:FindFirstChild("SigmaLight")
+        if light then light:Destroy() end
+        local particles = root:FindFirstChild("SigmaParticles")
+        if particles then particles:Destroy() end
+    end
+end
+
+local function applySigmaToChar(char)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "SigmaHighlight"
+    hl.FillColor = Color3.fromRGB(128, 0, 255)
+    hl.OutlineColor = Color3.fromRGB(180, 80, 255)
+    hl.FillTransparency = 0.7
+    hl.OutlineTransparency = 0
+    hl.Parent = char
+
+    local light = Instance.new("PointLight")
+    light.Name = "SigmaLight"
+    light.Color = Color3.fromRGB(128, 0, 255)
+    light.Brightness = 5
+    light.Range = 15
+    light.Parent = root
+
+    local particles = Instance.new("ParticleEmitter")
+    particles.Name = "SigmaParticles"
+    particles.Texture = "rbxassetid://243660364"
+    particles.Color = ColorSequence.new(Color3.fromRGB(180, 80, 255))
+    particles.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1.5),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    particles.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.2),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    particles.Lifetime = NumberRange.new(1, 2)
+    particles.Rate = 40
+    particles.Speed = NumberRange.new(2, 4)
+    particles.SpreadAngle = Vector2.new(360, 360)
+    particles.Rotation = NumberRange.new(0, 360)
+    particles.RotSpeed = NumberRange.new(180, 360)
+    particles.LightEmission = 1
+    particles.Parent = root
 end
 
 sigmaBtn.MouseButton1Click:Connect(function()
     if sigmaPlaying then
         sigmaPlaying = false
         if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() sigmaSound = nil end
-        if sigmaAuraConn then sigmaAuraConn:Disconnect() end
-        if sigmaPoseConn then sigmaPoseConn:Disconnect() end
-        removeSigmaEffects()
+        if sigmaAuraConn then sigmaAuraConn:Disconnect() sigmaAuraConn = nil end
+        if sigmaPoseConn then sigmaPoseConn:Disconnect() sigmaPoseConn = nil end
+        removeSigmaEffectsFromChar(LocalPlayer.Character)
         sigmaBtn.Text = "Я СИГМА"
         return
     end
@@ -497,39 +563,9 @@ sigmaBtn.MouseButton1Click:Connect(function()
     sigmaPlaying = true
     sigmaBtn.Text = "Я СИГМА (ВКЛ)"
 
-    sigmaHighlight = Instance.new("Highlight")
-    sigmaHighlight.FillColor = Color3.fromRGB(128, 0, 255)
-    sigmaHighlight.OutlineColor = Color3.fromRGB(180, 80, 255)
-    sigmaHighlight.FillTransparency = 0.7
-    sigmaHighlight.OutlineTransparency = 0
-    sigmaHighlight.Parent = char
+    applySigmaToChar(char)
 
-    sigmaLight = Instance.new("PointLight")
-    sigmaLight.Color = Color3.fromRGB(128, 0, 255)
-    sigmaLight.Brightness = 5
-    sigmaLight.Range = 15
-    sigmaLight.Parent = localRoot
-
-    sigmaParticles = Instance.new("ParticleEmitter")
-    sigmaParticles.Texture = "rbxassetid://243660364"
-    sigmaParticles.Color = ColorSequence.new(Color3.fromRGB(180, 80, 255))
-    sigmaParticles.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1.5),
-        NumberSequenceKeypoint.new(1, 0),
-    })
-    sigmaParticles.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.2),
-        NumberSequenceKeypoint.new(1, 1),
-    })
-    sigmaParticles.Lifetime = NumberRange.new(1, 2)
-    sigmaParticles.Rate = 40
-    sigmaParticles.Speed = NumberRange.new(2, 4)
-    sigmaParticles.SpreadAngle = Vector2.new(360, 360)
-    sigmaParticles.Rotation = NumberRange.new(0, 360)
-    sigmaParticles.RotSpeed = NumberRange.new(180, 360)
-    sigmaParticles.LightEmission = 1
-    sigmaParticles.Parent = localRoot
-
+    -- Поза
     sigmaPoseConn = RunService.RenderStepped:Connect(function()
         if not sigmaPlaying then return end
         local c = LocalPlayer.Character
@@ -542,15 +578,9 @@ sigmaBtn.MouseButton1Click:Connect(function()
             local head = c:FindFirstChild("Head")
             local neck = head and head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck")
 
-            if rightShoulder then
-                rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60))
-            end
-            if leftShoulder then
-                leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60))
-            end
-            if neck then
-                neck.Transform = CFrame.Angles(math.rad(-20), 0, 0)
-            end
+            if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60)) end
+            if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60)) end
+            if neck then neck.Transform = CFrame.Angles(math.rad(-20), 0, 0) end
         else
             local torso = c:FindFirstChild("Torso")
             if torso then
@@ -559,24 +589,24 @@ sigmaBtn.MouseButton1Click:Connect(function()
                 local head = c:FindFirstChild("Head")
                 local neck = head and head:FindFirstChild("Neck")
 
-                if rightShoulder then
-                    rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60))
-                end
-                if leftShoulder then
-                    leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60))
-                end
-                if neck then
-                    neck.Transform = CFrame.Angles(math.rad(-20), 0, 0)
-                end
+                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60)) end
+                if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60)) end
+                if neck then neck.Transform = CFrame.Angles(math.rad(-20), 0, 0) end
             end
         end
     end)
 
+    -- Пульсация света
     sigmaAuraConn = RunService.Heartbeat:Connect(function()
-        if not sigmaPlaying or not sigmaLight then return end
-        local t = os.clock()
-        sigmaLight.Brightness = 3 + math.sin(t * 4) * 2
-        sigmaLight.Range = 12 + math.sin(t * 3) * 3
+        if not sigmaPlaying then return end
+        local root = getRoot(LocalPlayer)
+        if not root then return end
+        local light = root:FindFirstChild("SigmaLight")
+        if light then
+            local t = os.clock()
+            light.Brightness = 3 + math.sin(t * 4) * 2
+            light.Range = 12 + math.sin(t * 3) * 3
+        end
     end)
 end)
 
@@ -739,6 +769,7 @@ local function applyGodMode()
     humanoid.Health = math.huge
     humanoid.BreakJointsOnDeath = false
 
+    if godModeConn then godModeConn:Disconnect() end
     godModeConn = RunService.Heartbeat:Connect(function()
         local c = LocalPlayer.Character
         if not c then return end
@@ -762,26 +793,6 @@ local function applyGodMode()
         goldHighlight.OutlineTransparency = 0
         goldHighlight.Name = "GodModeHighlight"
         goldHighlight.Parent = char
-    end
-end
-
-local function removeGodMode()
-    if godModeConn then godModeConn:Disconnect() godModeConn = nil end
-    local char = LocalPlayer.Character
-    if char then
-        local h = char:FindFirstChildOfClass("Humanoid")
-        if h then
-            h.MaxHealth = 100
-            h.Health = 100
-            h.BreakJointsOnDeath = true
-        end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            local gl = root:FindFirstChild("GodModeLight")
-            if gl then gl:Destroy() end
-        end
-        local hl = char:FindFirstChild("GodModeHighlight")
-        if hl then hl:Destroy() end
     end
 end
 
@@ -820,7 +831,7 @@ luckyBtn.MouseButton1Click:Connect(function()
     rouletteResult.TextSize = 18
     rouletteResult.Parent = rouletteFrame
 
-    local results = { "РЕЖИМ БОГА", "RESET", "РЕЖИМ БОГА", "RESET", "РЕЖИМ БОГА", "RESET" }
+    local results = { "РЕЖИМ БОГА", "RESET", "РЕЖИМ БОГА", "RESET" }
     local ticks = 0
     local maxTicks = 20
 
@@ -911,9 +922,69 @@ killBtn.MouseButton1Click:Connect(function()
     if flyConn then flyConn:Disconnect() end
     if flyPoseConn then flyPoseConn:Disconnect() end
     if godModeConn then godModeConn:Disconnect() end
-    if flingConn then flingConn:Disconnect() end
-    if flingBAV then flingBAV:Destroy() end
-    removeSigmaEffects()
-    removeGodMode()
+    for _, c in pairs(flingConns) do if c then c:Disconnect() end end
+    removeSigmaEffectsFromChar(LocalPlayer.Character)
     screenGui:Destroy()
+end)
+
+-- ====== РЕСПАВН: переустановка эффектов после смерти ======
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    -- Ждём пока персонаж прогрузится
+    newChar:WaitForChild("HumanoidRootPart")
+
+    -- Если сигма активна — заново накладываем эффекты на новый персонаж
+    if sigmaPlaying then
+        task.wait(0.5)
+        local newRoot = newChar:FindFirstChild("HumanoidRootPart")
+        if newRoot then
+            -- Переносим звук
+            if sigmaSound then
+                sigmaSound.Parent = newRoot
+                sigmaSound:Play()
+            end
+            applySigmaToChar(newChar)
+        end
+    end
+
+    -- Если полёт активен — заново обнуляем скорость
+    if flying then
+        local h = newChar:FindFirstChildOfClass("Humanoid")
+        if h then
+            h.WalkSpeed = 0
+            h.JumpPower = 0
+            h.JumpHeight = 0
+        end
+    end
+
+    -- Если режим бога активен — заново даём бессмертие
+    local h = newChar:FindFirstChildOfClass("Humanoid")
+    if h and godModeConn and godModeConn.Connected then
+        task.wait(0.5)
+        h.MaxHealth = math.huge
+        h.Health = math.huge
+        h.BreakJointsOnDeath = false
+
+        local root = newChar:FindFirstChild("HumanoidRootPart")
+        if root and not root:FindFirstChild("GodModeLight") then
+            local goldLight = Instance.new("PointLight")
+            goldLight.Color = Color3.fromRGB(255, 215, 0)
+            goldLight.Brightness = 8
+            goldLight.Range = 20
+            goldLight.Name = "GodModeLight"
+            goldLight.Parent = root
+        end
+        if not newChar:FindFirstChild("GodModeHighlight") then
+            local goldHighlight = Instance.new("Highlight")
+            goldHighlight.FillColor = Color3.fromRGB(255, 215, 0)
+            goldHighlight.OutlineColor = Color3.fromRGB(255, 255, 100)
+            goldHighlight.FillTransparency = 0.8
+            goldHighlight.OutlineTransparency = 0
+            goldHighlight.Name = "GodModeHighlight"
+            goldHighlight.Parent = newChar
+        end
+    end
+
+    -- Пистолет заново выдаётся в Backpack автоматически при респавне,
+    -- но pistolGiven = true мешает. Сбрасываем, чтобы можно было выдать снова.
+    pistolGiven = false
 end)
