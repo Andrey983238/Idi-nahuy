@@ -4,11 +4,6 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- getgenv fallback для обычного LocalScript
-local function getgenv()
-    return _G
-end
-
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
 screenGui.ResetOnSpawn = false
@@ -305,7 +300,7 @@ local function createMenuButton(text, color)
     return btn
 end
 
--- ====== КНОПКА 1: ТЕЛЕПОРТ (список игроков) ======
+-- ====== КНОПКА 1: ТЕЛЕПОРТ ======
 local tpBtn = createMenuButton("ТП к игроку", Color3.fromRGB(40, 100, 160))
 
 local tpListContainer = Instance.new("ScrollingFrame")
@@ -351,7 +346,6 @@ local function refreshTpList()
                 local localRoot = getRoot(LocalPlayer)
                 if targetRoot and localRoot then
                     localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
-                    print("ТП к: " .. plr.Name)
                 end
             end)
 
@@ -374,7 +368,7 @@ Players.PlayerRemoving:Connect(function()
     if tpListVisible then refreshTpList() end
 end)
 
--- ====== КНОПКА 2: ПИСТОЛЕТ (с KILASIK-флингом) ======
+-- ====== КНОПКА 2: ПИСТОЛЕТ ======
 local pistolBtn = createMenuButton("Выдать пистолет", Color3.fromRGB(60, 120, 50))
 local pistolGiven = false
 
@@ -438,7 +432,6 @@ local function createPistol()
         local localRoot = getRoot(LocalPlayer)
         if not localRoot then return end
 
-        -- Вспышка
         local flash = Instance.new("Part")
         flash.Size = Vector3.new(0.4, 0.4, 0.4)
         flash.Shape = Enum.PartType.Ball
@@ -472,7 +465,6 @@ local function createPistol()
 
         localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
 
-        -- Raycast
         local mouse = LocalPlayer:GetMouse()
         local rayOrigin = handle.Position
         local rayDirection = (mouse.Hit.Position - rayOrigin).Unit * 500
@@ -492,22 +484,14 @@ local function createPistol()
         if rayResult then
             local hitPlayer = getPlayerFromPart(rayResult.Instance)
             if hitPlayer and hitPlayer ~= LocalPlayer then
-                print("Попадание по: " .. hitPlayer.Name .. " — KILASIK флинг!")
-
-                -- Запускаем KILASIK-флинг в отдельном потоке
                 FlingActive = true
                 task.spawn(function()
                     KilasikFling(hitPlayer)
                     FlingActive = false
                 end)
-            else
-                print("Промах")
             end
-        else
-            print("Промах")
         end
 
-        -- Луч
         local beam = Instance.new("Part")
         beam.Anchored = true
         beam.CanCollide = false
@@ -539,7 +523,6 @@ pistolBtn.MouseButton1Click:Connect(function()
     local tool = createPistol()
     tool.Parent = backpack
     pistolGiven = true
-    print("Пистолет выдан! Стреляйте в игрока — KILASIK флинг.")
 end)
 
 -- ====== КНОПКА 3: Я СИГМА ======
@@ -673,7 +656,79 @@ sigmaBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 4: ПОЛЁТ (улучшенная анимация) ======
+-- ====== КРАСНЫЕ ГЛАЗА ======
+local function addRedEyes(char)
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+
+    -- Удаляем старые если есть
+    local existing = head:FindFirstChild("RedEyeLeft")
+    if existing then existing:Destroy() end
+    local existing2 = head:FindFirstChild("RedEyeRight")
+    if existing2 then existing2:Destroy() end
+
+    -- Левый глаз
+    local eyeL = Instance.new("Part")
+    eyeL.Name = "RedEyeLeft"
+    eyeL.Size = Vector3.new(0.15, 0.15, 0.05)
+    eyeL.Color = Color3.fromRGB(255, 0, 0)
+    eyeL.Material = Enum.Material.Neon
+    eyeL.CanCollide = false
+    eyeL.Anchored = false
+    eyeL.CFrame = head.CFrame * CFrame.new(-0.2, 0.1, -0.5)
+    eyeL.Parent = char
+
+    local weldL = Instance.new("WeldConstraint")
+    weldL.Part0 = head
+    weldL.Part1 = eyeL
+    weldL.Parent = eyeL
+
+    local lightL = Instance.new("PointLight")
+    lightL.Color = Color3.fromRGB(255, 0, 0)
+    lightL.Brightness = 3
+    lightL.Range = 5
+    lightL.Parent = eyeL
+
+    -- Правый глаз
+    local eyeR = Instance.new("Part")
+    eyeR.Name = "RedEyeRight"
+    eyeR.Size = Vector3.new(0.15, 0.15, 0.05)
+    eyeR.Color = Color3.fromRGB(255, 0, 0)
+    eyeR.Material = Enum.Material.Neon
+    eyeR.CanCollide = false
+    eyeR.Anchored = false
+    eyeR.CFrame = head.CFrame * CFrame.new(0.2, 0.1, -0.5)
+    eyeR.Parent = char
+
+    local weldR = Instance.new("WeldConstraint")
+    weldR.Part0 = head
+    weldR.Part1 = eyeR
+    weldR.Parent = eyeR
+
+    local lightR = Instance.new("PointLight")
+    lightR.Color = Color3.fromRGB(255, 0, 0)
+    lightR.Brightness = 3
+    lightR.Range = 5
+    lightR.Parent = eyeR
+end
+
+local function removeRedEyes(char)
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if head then
+        local eL = head:FindFirstChild("RedEyeLeft")
+        if eL then eL:Destroy() end
+        local eR = head:FindFirstChild("RedEyeRight")
+        if eR then eR:Destroy() end
+    end
+    -- Они приварены к Head, так что если Head есть — ищем в нём
+    local eL2 = char:FindFirstChild("RedEyeLeft")
+    if eL2 then eL2:Destroy() end
+    local eR2 = char:FindFirstChild("RedEyeRight")
+    if eR2 then eR2:Destroy() end
+end
+
+-- ====== КНОПКА 4: ПОЛЁТ (поза супермена + красные глаза) ======
 local flyBtn = createMenuButton("Полёт [50]", Color3.fromRGB(0, 150, 200))
 
 local flySpeedPanel = Instance.new("Frame")
@@ -737,7 +792,8 @@ flyBtn.MouseButton1Click:Connect(function()
     flying = not flying
     local root = getRoot(LocalPlayer)
     local humanoid = getHumanoid(LocalPlayer)
-    if not root or not humanoid then return end
+    local char = LocalPlayer.Character
+    if not root or not humanoid or not char then return end
 
     if flying then
         humanoid.WalkSpeed = 0
@@ -746,8 +802,12 @@ flyBtn.MouseButton1Click:Connect(function()
         flyBtn.Text = "Полёт [" .. flySpeed .. "] ВКЛ"
         flySpeedPanel.Visible = true
 
+        -- Красные глаза
+        addRedEyes(char)
+
         local camera = workspace.CurrentCamera
 
+        -- Движение
         flyConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local root2 = getRoot(LocalPlayer)
@@ -772,47 +832,69 @@ flyBtn.MouseButton1Click:Connect(function()
             root2.AssemblyLinearVelocity = moveVec
         end)
 
-        -- Улучшенная анимация полёта — поза супермена
+        -- ====== ПОЗА СУПЕРМЕНА ======
+        -- Тело горизонтально, руки вытянуты вперёд, ноги вместе назад
         flyPoseConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local c = LocalPlayer.Character
             if not c then return end
 
             local t = os.clock()
-            local bob = math.sin(t * 8) * 0.05 -- лёгкое покачивание
+            -- Лёгкое покачивание для живости
+            local sway = math.sin(t * 6) * 0.03
+            local armSway = math.sin(t * 6) * math.rad(3)
 
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
                 -- R15
                 local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
                 local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
-                local rightHip = c:FindFirstChild("RightHip")
-                local leftHip = c:FindFirstChild("LeftHip")
+                local rightHip = c:FindFirstChild("RightLeg") and c:FindFirstChild("RightHip")
+                local leftHip = c:FindFirstChild("LeftLeg") and c:FindFirstChild("LeftHip")
                 local waist = c:FindFirstChild("LowerTorso") and c.LowerTorso:FindFirstChild("Waist")
                 local head = c:FindFirstChild("Head")
                 local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
+                local rightKnee = c:FindFirstChild("RightLeg") and c.RightLeg:FindFirstChild("RightKnee")
+                local leftKnee = c:FindFirstChild("LeftLeg") and c.LeftLeg:FindFirstChild("LeftKnee")
+                local rightAnkle = c:FindFirstChild("RightFoot") and c.RightFoot:FindFirstChild("RightAnkle")
+                local leftAnkle = c:FindFirstChild("LeftFoot") and c.LeftFoot:FindFirstChild("LeftAnkle")
 
-                -- Руки вытянуты вперёд — поза супермена
+                -- Руки вытянуты вперёд, как у супермена
                 if rightShoulder then
-                    rightShoulder.Transform = CFrame.Angles(math.rad(-90 + bob * 20), math.rad(15), math.rad(-5))
+                    rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5))
                 end
                 if leftShoulder then
-                    leftShoulder.Transform = CFrame.Angles(math.rad(-90 - bob * 20), math.rad(-15), math.rad(5))
+                    leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5))
                 end
-                -- Ноги вытянуты назад, слегка разведены
+
+                -- Ноги прямые, вытянуты назад
                 if rightHip then
-                    rightHip.Transform = CFrame.Angles(math.rad(5 + bob * 10), 0, math.rad(-10))
+                    rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3))
                 end
                 if leftHip then
-                    leftHip.Transform = CFrame.Angles(math.rad(5 - bob * 10), 0, math.rad(10))
+                    leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3))
                 end
-                -- Корпус наклонён вперёд
+                if rightKnee then
+                    rightKnee.Transform = CFrame.Angles(0, 0, 0)
+                end
+                if leftKnee then
+                    leftKnee.Transform = CFrame.Angles(0, 0, 0)
+                end
+                if rightAnkle then
+                    rightAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0)
+                end
+                if leftAnkle then
+                    leftAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0)
+                end
+
+                -- Корпус горизонтально — наклон 90 градусов
                 if waist then
-                    waist.Transform = CFrame.Angles(math.rad(20), 0, 0)
+                    waist.Transform = CFrame.Angles(math.rad(80), 0, 0)
                 end
-                -- Голова смотрит вперёд
+
+                -- Голова смотрит вперёд (компенсирует наклон корпуса)
                 if neck then
-                    neck.Transform = CFrame.Angles(math.rad(-15), 0, 0)
+                    neck.Transform = CFrame.Angles(math.rad(-80), 0, 0)
                 end
             else
                 -- R6
@@ -826,27 +908,30 @@ flyBtn.MouseButton1Click:Connect(function()
                     local neck = head and head:FindFirstChild("Neck")
                     local rootJoint = c:FindFirstChild("HumanoidRootPart") and c.HumanoidRootPart:FindFirstChild("RootJoint")
 
-                    -- Руки вперёд
+                    -- Руки вытянуты вперёд
                     if rightShoulder then
-                        rightShoulder.Transform = CFrame.Angles(math.rad(-90 + bob * 20), math.rad(15), math.rad(-5))
+                        rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5))
                     end
                     if leftShoulder then
-                        leftShoulder.Transform = CFrame.Angles(math.rad(-90 - bob * 20), math.rad(-15), math.rad(5))
+                        leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5))
                     end
-                    -- Ноги назад
+
+                    -- Ноги прямые, чуть назад
                     if rightHip then
-                        rightHip.Transform = CFrame.Angles(math.rad(5 + bob * 10), 0, math.rad(-10))
+                        rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3))
                     end
                     if leftHip then
-                        leftHip.Transform = CFrame.Angles(math.rad(5 - bob * 10), 0, math.rad(10))
+                        leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3))
                     end
-                    -- Голова вперёд
+
+                    -- Голова смотрит вперёд
                     if neck then
-                        neck.Transform = CFrame.Angles(math.rad(-15), 0, 0)
+                        neck.Transform = CFrame.Angles(math.rad(-80), 0, 0)
                     end
-                    -- Корпус наклонён
+
+                    -- Корпус наклонён горизонтально
                     if rootJoint then
-                        rootJoint.Transform = CFrame.Angles(math.rad(20), 0, 0)
+                        rootJoint.Transform = CFrame.Angles(math.rad(80), 0, 0)
                     end
                 end
             end
@@ -859,6 +944,7 @@ flyBtn.MouseButton1Click:Connect(function()
         humanoid.JumpHeight = 7.2
         flyBtn.Text = "Полёт [" .. flySpeed .. "]"
         flySpeedPanel.Visible = false
+        removeRedEyes(LocalPlayer.Character)
     end
 end)
 
@@ -1033,6 +1119,7 @@ killBtn.MouseButton1Click:Connect(function()
     if flyPoseConn then flyPoseConn:Disconnect() end
     if godModeConn then godModeConn:Disconnect() end
     removeSigmaEffectsFromChar(LocalPlayer.Character)
+    removeRedEyes(LocalPlayer.Character)
     screenGui:Destroy()
 end)
 
@@ -1059,6 +1146,8 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
             h.JumpPower = 0
             h.JumpHeight = 0
         end
+        task.wait(0.3)
+        addRedEyes(newChar)
     end
 
     if godModeConn and godModeConn.Connected then
