@@ -43,8 +43,8 @@ local function makeDraggable(frame)
     end)
 end
 
--- ====== СОЗДАНИЕ ПАНЕЛИ ======
-local function createPanel(yOffset, buttonText, actionFunc, placeholder)
+-- ====== ПАНЕЛЬ С ТЕКСТОВЫМ ПОЛЕМ (для телепорта) ======
+local function createPanelWithInput(yOffset, buttonText, actionFunc, placeholder)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 260, 0, 90)
     frame.Position = UDim2.new(0, 20, 0, yOffset)
@@ -94,6 +94,45 @@ local function createPanel(yOffset, buttonText, actionFunc, placeholder)
     return frame
 end
 
+-- ====== ПАНЕЛЬ БЕЗ ТЕКСТОВОГО ПОЛЯ (кнопка только) ======
+local function createPanelNoInput(yOffset, buttonText, actionFunc)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 260, 0, 50)
+    frame.Position = UDim2.new(0, 20, 0, yOffset)
+    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Parent = screenGui
+
+    local topBar = Instance.new("TextLabel")
+    topBar.Size = UDim2.new(1, 0, 0, 18)
+    topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    topBar.BorderSizePixel = 0
+    topBar.Text = "≡ Перетащи"
+    topBar.TextColor3 = Color3.fromRGB(160, 160, 180)
+    topBar.Font = Enum.Font.SourceSans
+    topBar.TextSize = 14
+    topBar.Parent = frame
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -20, 0, 28)
+    button.Position = UDim2.new(0, 10, 0, 22)
+    button.Text = buttonText
+    button.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.TextSize = 16
+    button.Parent = frame
+
+    makeDraggable(frame)
+
+    button.MouseButton1Click:Connect(function()
+        actionFunc()
+    end)
+
+    return frame
+end
+
 -- ====== ПОИСК HRP ======
 local function getRoot(player)
     local char = player.Character
@@ -119,7 +158,7 @@ local function findPlayer(name)
 end
 
 -- ====== ПАНЕЛЬ 1: ТЕЛЕПОРТ ======
-createPanel(30, "ТП к игроку", function(text)
+createPanelWithInput(30, "ТП к игроку", function(text)
     local targetPlayer = findPlayer(text)
     if not targetPlayer then return end
     local targetRoot = getRoot(targetPlayer)
@@ -141,7 +180,6 @@ local function createPistol()
     tool.RequiresHandle = true
     tool.ToolTip = "Визуал Пистолет"
 
-    -- Handle — основной корпус
     local handle = Instance.new("Part")
     handle.Name = "Handle"
     handle.Size = Vector3.new(0.4, 0.4, 1.8)
@@ -150,7 +188,6 @@ local function createPistol()
     handle.CanCollide = false
     handle.Parent = tool
 
-    -- Ствол
     local barrel = Instance.new("Part")
     barrel.Name = "Barrel"
     barrel.Size = Vector3.new(0.25, 0.25, 1.2)
@@ -165,7 +202,6 @@ local function createPistol()
     weld1.Part1 = barrel
     weld1.Parent = handle
 
-    -- Рукоятка
     local grip = Instance.new("Part")
     grip.Name = "Grip"
     grip.Size = Vector3.new(0.35, 0.9, 0.45)
@@ -180,7 +216,6 @@ local function createPistol()
     weld2.Part1 = grip
     weld2.Parent = handle
 
-    -- Спусковая скоба
     local trigger = Instance.new("Part")
     trigger.Name = "Trigger"
     trigger.Size = Vector3.new(0.12, 0.25, 0.18)
@@ -195,9 +230,7 @@ local function createPistol()
     weld3.Part1 = trigger
     weld3.Parent = handle
 
-    -- Выстрел
     tool.Activated:Connect(function()
-        -- Вспышка
         local flash = Instance.new("Part")
         flash.Name = "Flash"
         flash.Size = Vector3.new(0.4, 0.4, 0.4)
@@ -215,14 +248,12 @@ local function createPistol()
         flashWeld.Part1 = flash
         flashWeld.Parent = handle
 
-        -- Звук выстрела
         local shootSound = Instance.new("Sound")
         shootSound.SoundId = "rbxassetid://130835443"
         shootSound.Volume = 1
         shootSound.Parent = handle
         shootSound:Play()
 
-        -- Затухание вспышки
         task.spawn(function()
             for i = 1, 8 do
                 if not flash or not flash.Parent then break end
@@ -233,7 +264,6 @@ local function createPistol()
             if flash then flash:Destroy() end
         end)
 
-        -- Лёгкая отдача
         local localRoot = getRoot(LocalPlayer)
         if localRoot then
             localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -15
@@ -243,7 +273,7 @@ local function createPistol()
     return tool
 end
 
-createPanel(130, "Выдать пистолет", function(text)
+createPanelNoInput(130, "Выдать пистолет", function()
     if pistolGiven then
         warn("Пистолет уже выдан!")
         return
@@ -263,7 +293,7 @@ local sigmaSound = nil
 local sigmaPlaying = false
 local sigmaAuraConn = nil
 
-createPanel(230, "Я СИГМА", function(text)
+createPanelNoInput(190, "Я СИГМА", function()
     if sigmaPlaying and sigmaSound then
         sigmaSound:Stop()
         sigmaSound:Destroy()
@@ -289,7 +319,6 @@ createPanel(230, "Я СИГМА", function(text)
     sigmaPlaying = true
     print("Я СИГМА — музыка включена!")
 
-    -- Неоновая аура
     sigmaAuraConn = RunService.Heartbeat:Connect(function()
         if not sigmaPlaying then return end
         local root = getRoot(LocalPlayer)
@@ -321,11 +350,10 @@ createPanel(230, "Я СИГМА", function(text)
             if aura then aura:Destroy() end
         end)
     end)
-end, "Повторное нажатие — стоп")
+end)
 
 -- ====== ПАНЕЛЬ 4: КРАШ КЛИЕНТА ======
-createPanel(330, "Краш игры", function(text)
-    -- Спам Part'ами с бесконечным циклом — переполняет память и крашит клиент
+createPanelNoInput(250, "Краш игры", function()
     print("Краш через 3 секунды...")
     task.wait(3)
 
@@ -336,14 +364,17 @@ createPanel(330, "Краш игры", function(text)
                 p.Size = Vector3.new(100, 100, 100)
                 p.Anchored = false
                 p.CanCollide = true
-                p.Position = Vector3.new(math.random(-500, 500), math.random(-500, 500), math.random(-500, 500))
+                p.Position = Vector3.new(
+                    math.random(-500, 500),
+                    math.random(-500, 500),
+                    math.random(-500, 500)
+                )
                 p.Parent = workspace
             end
             task.wait(0.01)
         end
     end)
 
-    -- Дополнительный спам GUI
     task.spawn(function()
         while true do
             for i = 1, 200 do
@@ -354,7 +385,7 @@ createPanel(330, "Краш игры", function(text)
             task.wait(0.01)
         end
     end)
-end, "Нажми — игра крашнется")
+end)
 
 -- ====== КНОПКА ЗАКРЫТИЯ ======
 local closeButton = Instance.new("TextButton")
