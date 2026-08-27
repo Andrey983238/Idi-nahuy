@@ -38,6 +38,13 @@ local function makeDraggable(frame, dragBar)
                     startPos.X.Scale, startPos.X.Offset + delta.X,
                     startPos.Y.Scale, startPos.Y.Offset + delta.Y
                 )
+                -- Двигаем надпись вместе с окном
+                if titleLabel and titleLabel:GetAttribute("linked") then
+                    titleLabel.Position = UDim2.new(
+                        startPos.X.Scale, startPos.X.Offset + delta.X,
+                        startPos.Y.Scale, startPos.Y.Offset + delta.Y - 30
+                    )
+                end
             end
         end
     end)
@@ -109,74 +116,18 @@ local function flingPlayer(targetPlayer)
     end)
 end
 
--- ====== СИГМА-ПОЗА ======
-local sigmaPoseActive = false
-local sigmaPoseConn = nil
-
-local function applySigmaPose()
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-
-    -- Останавливаем движение
-    humanoid.WalkSpeed = 0
-    humanoid.JumpPower = 0
-    humanoid.JumpHeight = 0
-
-    -- Меняем позу через Motor6D
-    local function setJoint(name, c0, c1)
-        local joint = char:FindFirstChild(name, true)
-        if joint and joint:IsA("Motor6D") then
-            if c0 then joint.C0 = c0 end
-            if c1 then joint.C1 = c1 end
-        end
-    end
-
-    -- Крутая сигма-поза: руки скрещены, голова чуть назад
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    local lowerTorso = char:FindFirstChild("LowerTorso")
-    local upperTorso = char:FindFirstChild("UpperTorso")
-    local head = char:FindFirstChild("Head")
-
-    -- R15
-    if upperTorso then
-        local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
-        local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
-        local waist = lowerTorso and lowerTorso:FindFirstChild("Waist")
-
-        if rightShoulder then
-            rightShoulder.Transform = CFrame.Angles(0, 0, math.rad(-80))
-        end
-        if leftShoulder then
-            leftShoulder.Transform = CFrame.Angles(0, 0, math.rad(80))
-        end
-        if waist then
-            waist.Transform = CFrame.Angles(math.rad(-10), 0, 0)
-        end
-    else
-        -- R6
-        local torso = char:FindFirstChild("Torso")
-        if torso then
-            local rightShoulder = torso:FindFirstChild("Right Shoulder")
-            local leftShoulder = torso:FindFirstChild("Left Shoulder")
-            local neck = char:FindFirstChild("Head") and char.Head:FindFirstChild("Neck")
-
-            if rightShoulder then
-                rightShoulder.Transform = CFrame.Angles(0, 0, math.rad(-80))
-            end
-            if leftShoulder then
-                leftShoulder.Transform = CFrame.Angles(0, 0, math.rad(80))
-            end
-            if neck then
-                neck.Transform = CFrame.Angles(math.rad(-15), 0, 0)
-            end
-        end
-    end
-end
+-- ====== НАДПИСЬ НАД ОКНОМ ======
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "SigmaCheatLabel"
+titleLabel.Size = UDim2.new(0, 280, 0, 25)
+titleLabel.Position = UDim2.new(0, 50, 0, 55)
+titleLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+titleLabel.BorderSizePixel = 0
+titleLabel.Text = "Сигма чит"
+titleLabel.TextColor3 = Color3.fromRGB(128, 0, 255)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 20
+titleLabel.Parent = screenGui
 
 -- ====== ГЛАВНОЕ ОКНО-МЕНЮ ======
 local mainWindow = Instance.new("Frame")
@@ -199,6 +150,9 @@ titleBar.Font = Enum.Font.SourceSansBold
 titleBar.TextSize = 18
 titleBar.TextXAlignment = Enum.TextXAlignment.Left
 titleBar.Parent = mainWindow
+
+-- Привязываем надпись к окну
+titleLabel:SetAttribute("linked", true)
 
 makeDraggable(mainWindow, titleBar)
 
@@ -230,7 +184,7 @@ uiListLayout.Parent = contentFrame
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 120, 0, 35)
 toggleBtn.Position = UDim2.new(0, 50, 0, 20)
-toggleBtn.Text = "Открыть меню"
+toggleBtn.Text = "Закрыть меню"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 255)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.Font = Enum.Font.SourceSansBold
@@ -242,11 +196,13 @@ local menuOpen = true
 toggleBtn.MouseButton1Click:Connect(function()
     menuOpen = not menuOpen
     mainWindow.Visible = menuOpen
+    titleLabel.Visible = menuOpen
     toggleBtn.Text = menuOpen and "Закрыть меню" or "Открыть меню"
 end)
 
 closeMenuBtn.MouseButton1Click:Connect(function()
     mainWindow.Visible = false
+    titleLabel.Visible = false
     menuOpen = false
     toggleBtn.Text = "Открыть меню"
 end)
@@ -273,7 +229,6 @@ end
 local inputWindow = nil
 
 local function createInputWindow(title, actionFunc)
-    -- Закрываем старое окно если есть
     if inputWindow then
         inputWindow:Destroy()
     end
@@ -534,7 +489,6 @@ local originalJumpPower = 50
 
 createMenuButton("Я СИГМА", function()
     if sigmaPlaying then
-        -- Отключение
         sigmaPlaying = false
         if sigmaSound then
             sigmaSound:Stop()
@@ -549,7 +503,6 @@ createMenuButton("Я СИГМА", function()
             sigmaPoseConn:Disconnect()
             sigmaPoseConn = nil
         end
-        -- Возвращаем движение
         local humanoid = getHumanoid(LocalPlayer)
         if humanoid then
             humanoid.WalkSpeed = originalWalkSpeed
@@ -560,21 +513,17 @@ createMenuButton("Я СИГМА", function()
         return
     end
 
-    -- Включение
     local localRoot = getRoot(LocalPlayer)
     local humanoid = getHumanoid(LocalPlayer)
     if not localRoot or not humanoid then return end
 
-    -- Сохраняем оригинальные значения
     originalWalkSpeed = humanoid.WalkSpeed
     originalJumpPower = humanoid.JumpPower or 50
 
-    -- Останавливаем движение
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
     humanoid.JumpHeight = 0
 
-    -- Музыка
     sigmaSound = Instance.new("Sound")
     sigmaSound.SoundId = "rbxassetid://9046865451"
     sigmaSound.Volume = 2
@@ -584,13 +533,12 @@ createMenuButton("Я СИГМА", function()
     sigmaPlaying = true
     print("Я СИГМА — музыка и поза включены!")
 
-    -- ====== СИГМА-ПОЗА (каждый кадр) ======
+    -- Сигма-поза
     sigmaPoseConn = RunService.RenderStepped:Connect(function()
         if not sigmaPlaying then return end
         local char = LocalPlayer.Character
         if not char then return end
 
-        -- R15
         local upperTorso = char:FindFirstChild("UpperTorso")
         if upperTorso then
             local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
@@ -598,20 +546,16 @@ createMenuButton("Я СИГМА", function()
             local head = char:FindFirstChild("Head")
             local neck = head and head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck")
 
-            -- Правая рука — скрещена на груди
             if rightShoulder then
                 rightShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(40), math.rad(-60))
             end
-            -- Левая рука — скрещена на груди
             if leftShoulder then
                 leftShoulder.Transform = CFrame.Angles(math.rad(-30), math.rad(-40), math.rad(60))
             end
-            -- Голова — чуть назад, взгляд сверху вниз
             if neck then
                 neck.Transform = CFrame.Angles(math.rad(-20), 0, 0)
             end
         else
-            -- R6
             local torso = char:FindFirstChild("Torso")
             if torso then
                 local rightShoulder = torso:FindFirstChild("Right Shoulder")
@@ -632,7 +576,7 @@ createMenuButton("Я СИГМА", function()
         end
     end)
 
-    -- ====== АУРА ======
+    -- Аура
     sigmaAuraConn = RunService.Heartbeat:Connect(function()
         if not sigmaPlaying then return end
         local root = getRoot(LocalPlayer)
