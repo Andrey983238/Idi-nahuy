@@ -661,9 +661,9 @@ local function addRedEyes(char)
     local head = char:FindFirstChild("Head")
     if not head then return end
 
-    local existing = head:FindFirstChild("RedEyeLeft")
+    local existing = char:FindFirstChild("RedEyeLeft")
     if existing then existing:Destroy() end
-    local existing2 = head:FindFirstChild("RedEyeRight")
+    local existing2 = char:FindFirstChild("RedEyeRight")
     if existing2 then existing2:Destroy() end
 
     local eyeL = Instance.new("Part")
@@ -1103,7 +1103,258 @@ luckyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 7: КРАШ ======
+-- ====== КНОПКА 7: ПУЛЬТ ОТ ЯДЕРКИ ======
+local nukeBtn = createMenuButton("Пульт от ядерки", Color3.fromRGB(200, 50, 50))
+local nukeGiven = false
+
+local function createNukeRemote()
+    local tool = Instance.new("Tool")
+    tool.Name = "Пульт от ядерки"
+    tool.RequiresHandle = true
+    tool.ToolTip = "Нажми ЛКМ — запустить ядерку!"
+
+    -- Корпус пульта
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(0.5, 0.3, 0.8)
+    handle.Color = Color3.fromRGB(30, 30, 35)
+    handle.Material = Enum.Material.Metal
+    handle.CanCollide = false
+    handle.Parent = tool
+
+    -- Красная кнопка сверху
+    local redBtn = Instance.new("Part")
+    redBtn.Name = "RedButton"
+    redBtn.Size = Vector3.new(0.3, 0.1, 0.3)
+    redBtn.Color = Color3.fromRGB(255, 0, 0)
+    redBtn.Material = Enum.Material.Neon
+    redBtn.CanCollide = false
+    redBtn.CFrame = handle.CFrame * CFrame.new(0, 0.2, 0)
+    redBtn.Parent = tool
+
+    local weld1 = Instance.new("WeldConstraint")
+    weld1.Part0 = handle
+    weld1.Part1 = redBtn
+    weld1.Parent = handle
+
+    -- Антенна
+    local antenna = Instance.new("Part")
+    antenna.Name = "Antenna"
+    antenna.Size = Vector3.new(0.05, 0.5, 0.05)
+    antenna.Color = Color3.fromRGB(100, 100, 110)
+    antenna.Material = Enum.Material.Metal
+    antenna.CanCollide = false
+    antenna.CFrame = handle.CFrame * CFrame.new(0, 0.4, -0.3)
+    antenna.Parent = tool
+
+    local weld2 = Instance.new("WeldConstraint")
+    weld2.Part0 = handle
+    weld2.Part1 = antenna
+    weld2.Parent = handle
+
+    -- Лампочка-индикатор
+    local indicator = Instance.new("Part")
+    indicator.Name = "Indicator"
+    indicator.Size = Vector3.new(0.08, 0.08, 0.08)
+    indicator.Shape = Enum.PartType.Ball
+    indicator.Color = Color3.fromRGB(0, 255, 0)
+    indicator.Material = Enum.Material.Neon
+    indicator.CanCollide = false
+    indicator.CFrame = handle.CFrame * CFrame.new(0. 0.15, 0.25)
+    indicator.Parent = tool
+
+    local weld3 = Instance.new("WeldConstraint")
+    weld3.Part0 = handle
+    weld3.Part1 = indicator
+    weld3.Parent = handle
+
+    local indicatorLight = Instance.new("PointLight")
+    indicatorLight.Color = Color3.fromRGB(0, 255, 0)
+    indicatorLight.Brightness = 2
+    indicatorLight.Range = 3
+    indicatorLight.Parent = indicator
+
+    -- Логика запуска ядерки
+    tool.Activated:Connect(function()
+        local localRoot = getRoot(LocalPlayer)
+        if not localRoot then return end
+
+        -- Лампочка мигает красным — запуск
+        indicator.Color = Color3.fromRGB(255, 0, 0)
+        indicatorLight.Color = Color3.fromRGB(255, 0, 0)
+
+        -- Сирена
+        local siren = Instance.new("Sound")
+        siren.SoundId = "rbxassetid://130835443"
+        siren.Volume = 2
+        siren.Parent = handle
+        siren:Play()
+
+        -- Создаём бомбу в воздухе над игроком
+        local bombPos = localRoot.Position + Vector3.new(math.random(-30, 30), 200, math.random(-30, 30))
+        local bomb = Instance.new("Part")
+        bomb.Name = "NukeBomb"
+        bomb.Size = Vector3.new(4, 8, 4)
+        bomb.Color = Color3.fromRGB(40, 40, 50)
+        bomb.Material = Enum.Material.Metal
+        bomb.CanCollide = false
+        bomb.Anchored = false
+        bomb.CFrame = CFrame.new(bombPos)
+        bomb.Parent = workspace
+
+        -- Хвост бомбы
+        local tail = Instance.new("Part")
+        tail.Size = Vector3.new(2, 3, 2)
+        tail.Color = Color3.fromRGB(60, 60, 70)
+        tail.Material = Enum.Material.Metal
+        tail.CanCollide = false
+        tail.CFrame = bomb.CFrame * CFrame.new(0, 4, 0)
+        tail.Parent = bomb
+
+        local tailWeld = Instance.new("WeldConstraint")
+        tailWeld.Part0 = bomb
+        tailWeld.Part1 = tail
+        tailWeld.Parent = bomb
+
+        -- Красный мигающий свет на бомбе
+        local bombLight = Instance.new("PointLight")
+        bombLight.Color = Color3.fromRGB(255, 0, 0)
+        bombLight.Brightness = 5
+        bombLight.Range = 20
+        bombLight.Parent = bomb
+
+        -- Дым за бомбой
+        local smoke = Instance.new("ParticleEmitter")
+        smoke.Texture = "rbxassetid://243660364"
+        smoke.Color = ColorSequence.new(Color3.fromRGB(80, 80, 80))
+        smoke.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 3),
+            NumberSequenceKeypoint.new(1, 8),
+        })
+        smoke.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.3),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        smoke.Lifetime = NumberRange.new(1, 2)
+        smoke.Rate = 50
+        smoke.Speed = NumberRange.new(1, 3)
+        smoke.Parent = bomb
+
+        -- Мигание и писк бомбы при падении
+        local blinkOn = true
+        local bombSound = Instance.new("Sound")
+        bombSound.SoundId = "rbxassetid://130835443"
+        bombSound.Volume = 1.5
+        bombSound.Parent = bomb
+
+        local blinkConn
+        blinkConn = RunService.Heartbeat:Connect(function()
+            if not bomb or not bomb.Parent then
+                blinkConn:Disconnect()
+                return
+            end
+
+            -- Мигание
+            blinkOn = not blinkOn
+            bomb.Color = blinkOn and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(40, 40, 50)
+            bombLight.Brightness = blinkOn and 10 or 2
+
+            -- Писк
+            if blinkOn then
+                bombSound:Play()
+            end
+
+            -- Проверка — упала ли бомба (близко к земле или столкнулась)
+            local root = getRoot(LocalPlayer)
+            if root then
+                local heightDiff = bomb.Position.Y - root.Position.Y
+                if heightDiff < 15 then
+                    -- ВЗРЫВ!
+                    blinkConn:Disconnect()
+
+                    -- Удаляем бомбу
+                    smoke.Enabled = false
+                    bomb:Destroy()
+
+                    -- Огромный взрыв
+                    local explosion = Instance.new("Explosion")
+                    explosion.Position = root.Position
+                    explosion.BlastRadius = 100
+                    explosion.BlastPressure = 500000
+                    explosion.DestroyJointRadiusPercent = 1
+                    explosion.Parent = workspace
+
+                    -- Дополнительный взрыв-шар
+                    local blastBall = Instance.new("Part")
+                    blastBall.Shape = Enum.PartType.Ball
+                    blastBall.Size = Vector3.new(10, 10, 10)
+                    blastBall.Color = Color3.fromRGB(255, 200, 50)
+                    blastBall.Material = Enum.Material.Neon
+                    blastBall.Anchored = true
+                    blastBall.CanCollide = false
+                    blastBall.CFrame = CFrame.new(root.Position)
+                    blastBall.Parent = workspace
+
+                    -- Громкий звук взрыва
+                    local boomSound = Instance.new("Sound")
+                    boomSound.SoundId = "rbxassetid://130835443"
+                    boomSound.Volume = 5
+                    boomSound.Parent = blastBall
+                    boomSound:Play()
+
+                    -- Расширение взрыва
+                    task.spawn(function()
+                        for i = 1, 30 do
+                            if not blastBall or not blastBall.Parent then break end
+                            blastBall.Size = blastBall.Size + Vector3.new(8, 8, 8)
+                            blastBall.Transparency = i / 30
+                            task.wait(0.03)
+                        end
+                        if blastBall then blastBall:Destroy() end
+                    end)
+
+                    -- Ударная волна — отбрасывает игрока
+                    if root then
+                        root.AssemblyLinearVelocity = Vector3.new(
+                            math.random(-100, 100),
+                            300,
+                            math.random(-100, 100)
+                        )
+                    end
+
+                    -- Убиваем игрока
+                    local humanoid = getHumanoid(LocalPlayer)
+                    if humanoid then
+                        humanoid.Health = 0
+                    end
+
+                    -- Возвращаем лампочку на зелёный
+                    indicator.Color = Color3.fromRGB(0, 255, 0)
+                    indicatorLight.Color = Color3.fromRGB(0, 255, 0)
+                end
+            end
+        end)
+    end)
+
+    return tool
+end
+
+nukeBtn.MouseButton1Click:Connect(function()
+    if nukeGiven then
+        warn("Пульт уже выдан!")
+        return
+    end
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then
+        backpack = LocalPlayer:WaitForChild("Backpack")
+    end
+    local tool = createNukeRemote()
+    tool.Parent = backpack
+    nukeGiven = true
+    print("Пульт от ядерки выдан! Нажми ЛКМ для запуска.")
+end)
+
+-- ====== КНОПКА 8: КРАШ ======
 local crashBtn = createMenuButton("Краш игры", Color3.fromRGB(160, 30, 30))
 
 crashBtn.MouseButton1Click:Connect(function()
@@ -1224,4 +1475,5 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     end
 
     pistolGiven = false
+    nukeGiven = false
 end)
