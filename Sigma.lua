@@ -1,43 +1,93 @@
--- LocalScript (поместить в StarterPlayerScripts или использовать через executor)
+-- LocalScript
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
--- Создаём GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "PlayerToolGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Функция для создания кнопки с текстовым полем
-local function createPanel(yOffset, buttonText, actionText)
+-- ====== ПЕРЕТАСКИВАНИЕ ======
+local function makeDraggable(frame)
+    local dragging = false
+    local dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                local delta = input.Position - dragStart
+                frame.Position = UDim2.new(
+                    startPos.X.Scale, startPos.X.Offset + delta.X,
+                    startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+end
+
+-- ====== СОЗДАНИЕ ПАНЕЛИ ======
+local function createPanel(yOffset, buttonText, actionFunc)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 250, 0, 80)
+    frame.Size = UDim2.new(0, 260, 0, 90)
     frame.Position = UDim2.new(0, 20, 0, yOffset)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
     frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = false
     frame.Parent = screenGui
 
+    -- Заголовок-перетаскиватель
+    local topBar = Instance.new("TextLabel")
+    topBar.Size = UDim2.new(1, 0, 0, 20)
+    topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    topBar.BorderSizePixel = 0
+    topBar.Text = "≡ Перетащи"
+    topBar.TextColor3 = Color3.fromRGB(160, 160, 180)
+    topBar.Font = Enum.Font.SourceSans
+    topBar.TextSize = 14
+    topBar.Parent = frame
+
     local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(1, -20, 0, 30)
-    textBox.Position = UDim2.new(0, 10, 0, 10)
+    textBox.Size = UDim2.new(1, -20, 0, 28)
+    textBox.Position = UDim2.new(0, 10, 0, 26)
     textBox.PlaceholderText = "Введите ник игрока..."
     textBox.Text = ""
-    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
     textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     textBox.Font = Enum.Font.SourceSans
-    textBox.TextSize = 18
+    textBox.TextSize = 16
     textBox.ClearTextOnFocus = false
     textBox.Parent = frame
 
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 30)
-    button.Position = UDim2.new(0, 10, 0, 45)
+    button.Size = UDim2.new(1, -20, 0, 28)
+    button.Position = UDim2.new(0, 10, 0, 58)
     button.Text = buttonText
-    button.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
+    button.BackgroundColor3 = Color3.fromRGB(60, 130, 210)
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.Font = Enum.Font.SourceSansBold
-    button.TextSize = 18
+    button.TextSize = 16
     button.Parent = frame
+
+    -- Перетаскивание работает при зажатии в любом месте панели
+    makeDraggable(frame)
 
     button.MouseButton1Click:Connect(function()
         local targetName = textBox.Text
@@ -55,48 +105,63 @@ local function createPanel(yOffset, buttonText, actionText)
         end
 
         if not targetPlayer then
-            warn("Игрок '" .. targetName .. "' не найден на сервере!")
+            warn("Игрок '" .. targetName .. "' не найден!")
             return
         end
 
-        actionText(targetPlayer)
+        actionFunc(targetPlayer)
     end)
 
     return frame
 end
 
--- Панель 1: Телепорт к игроку
-createPanel(20, "ТП к игроку", function(targetPlayer)
-    local targetChar = targetPlayer.Character
-    local localChar = LocalPlayer.Character
-    if targetChar and localChar then
-        local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-        local localRoot = localChar:FindFirstChild("HumanoidRootPart")
-        if targetRoot and localRoot then
-            localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
-            print("Телепортирован к: " .. targetPlayer.Name)
-        end
+-- ====== ПОИСК HRP ======
+local function getRoot(player)
+    local char = player.Character
+    if char then
+        return char:FindFirstChild("HumanoidRootPart")
+    end
+    return nil
+end
+
+-- ====== ПАНЕЛЬ 1: ТЕЛЕПОРТ ======
+createPanel(30, "ТП к игроку", function(targetPlayer)
+    local targetRoot = getRoot(targetPlayer)
+    local localRoot = getRoot(LocalPlayer)
+    if targetRoot and localRoot then
+        localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
+        print("ТП к: " .. targetPlayer.Name)
     end
 end)
 
--- Панель 2: Флинг игрока
-createPanel(110, "Флинг игрока", function(targetPlayer)
-    local targetChar = targetPlayer.Character
-    local localChar = LocalPlayer.Character
-    if targetChar and localChar then
-        local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-        local localRoot = localChar:FindFirstChild("HumanoidRootPart")
-        if targetRoot and localRoot then
-            -- Записываем позицию цели
-            local originalPos = targetRoot.CFrame
-            -- Меняем CFrame на огромную позицию и обратно (стандартный метод флинга)
-            for _ = 1, 10 do
-                targetRoot.CFrame = CFrame.new(targetRoot.Position + Vector3.new(0, 10000, 0))
-                task.wait()
-                targetRoot.CFrame = originalPos
-                task.wait()
-            end
-            print("Флинг применён к: " .. targetPlayer.Name)
+-- ====== ПАНЕЛЬ 2: ФЛИНГ (метод спина) ======
+createPanel(130, "Флинг", function(targetPlayer)
+    local targetRoot = getRoot(targetPlayer)
+    local localRoot = getRoot(LocalPlayer)
+    if not (targetRoot and localRoot) then return end
+
+    -- Сохраняем исходную позицию, чтобы вернуться обратно
+    local originalCFrame = localRoot.CFrame
+
+    -- Телепортируемся внутрь цели
+    localRoot.CFrame = targetRoot.CFrame
+
+    -- Быстро вращаемся на месте — это создаёт сильное физическое отбрасывание
+    local spinSpeed = math.rad(7200) -- очень быстрое вращение
+    local elapsed = 0
+    local duration = 1.5
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function(dt)
+        elapsed += dt
+        if elapsed >= duration then
+            conn:Disconnect()
+            -- Возвращаемся на исходную позицию
+            localRoot.CFrame = originalCFrame
+            print("Флинг завершён: " .. targetPlayer.Name)
+            return
         end
-    end
+        -- Вращаемся вокруг цели
+        localRoot.CFrame = targetRoot.CFrame * CFrame.Angles(0, spinSpeed * dt, 0)
+    end)
 end)
