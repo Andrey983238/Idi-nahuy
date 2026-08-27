@@ -4,6 +4,11 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
+-- getgenv fallback для обычного LocalScript
+local function getgenv()
+    return _G
+end
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
 screenGui.ResetOnSpawn = false
@@ -39,7 +44,7 @@ local function makeDraggable(frame, dragBar)
     end)
 end
 
--- ====== УТИЛИТЫ (всегда берут текущий персонаж) ======
+-- ====== УТИЛИТЫ ======
 local function getRoot(player)
     local char = player.Character
     if char then
@@ -67,63 +72,125 @@ local function getPlayerFromPart(part)
     return nil
 end
 
--- ====== ФЛИНГ (применяется к ЦЕЛИ, не к вам) ======
-local flingConns = {}
+-- ====== KILASIK FLING ======
+local FlingActive = false
+local OldPos = nil
+local FPDH = workspace.FallenPartsDestroyHeight
 
-local function flingPlayer(targetPlayer)
-    -- Останавливаем старые
-    for _, c in pairs(flingConns) do
-        if c then c:Disconnect() end
+local function KilasikFling(TargetPlayer)
+    local Character = LocalPlayer.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    local RootPart = Humanoid and Humanoid.RootPart
+    local TCharacter = TargetPlayer.Character
+    if not TCharacter then return end
+
+    local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
+    local TRootPart = THumanoid and THumanoid.RootPart
+    local THead = TCharacter:FindFirstChild("Head")
+    local Accessory = TCharacter:FindFirstChildOfClass("Accessory")
+    local Handle = Accessory and Accessory:FindFirstChild("Handle")
+
+    if not (Character and Humanoid and RootPart) then return end
+
+    if RootPart.Velocity.Magnitude < 50 then
+        OldPos = RootPart.CFrame
     end
-    flingConns = {}
 
-    local targetRoot = getRoot(targetPlayer)
-    if not targetRoot then return end
+    if THumanoid and THumanoid.Sit then return end
 
-    -- BodyAngularVelocity на ЦЕЛЬ
-    local bav = Instance.new("BodyAngularVelocity")
-    bav.AngularVelocity = Vector3.new(0, 9999, 0)
-    bav.MaxTorque = Vector3.new(0, math.huge, 0)
-    bav.P = math.huge
-    bav.Name = "FlingBAV"
-    bav.Parent = targetRoot
+    if THead then
+        workspace.CurrentCamera.CameraSubject = THead
+    elseif Handle then
+        workspace.CurrentCamera.CameraSubject = Handle
+    elseif THumanoid and TRootPart then
+        workspace.CurrentCamera.CameraSubject = THumanoid
+    end
 
-    -- BodyVelocity — подбрасываем ЦЕЛЬ вверх
-    local bv = Instance.new("BodyVelocity")
-    bv.Velocity = Vector3.new(math.random(-50, 50), 300, math.random(-50, 50))
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.P = math.huge
-    bv.Name = "FlingBV"
-    bv.Parent = targetRoot
+    if not TCharacter:FindFirstChildWhichIsA("BasePart") then return end
 
-    local elapsed = 0
-    local duration = 3
+    local FPos = function(BasePart, Pos, Ang)
+        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
+        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
+        RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
+        RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+    end
 
-    flingConns[1] = RunService.Heartbeat:Connect(function(dt)
-        elapsed += dt
-        if elapsed >= duration then
-            for _, c in pairs(flingConns) do
-                if c then c:Disconnect() end
+    local SFBasePart = function(BasePart)
+        local TimeToWait = 2
+        local Time = tick()
+        local Angle = 0
+        repeat
+            if RootPart and THumanoid then
+                if BasePart.Velocity.Magnitude < 50 then
+                    Angle = Angle + 100
+                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+                    task.wait()
+                else
+                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+                    task.wait()
+                    FPos(BasePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                    task.wait()
+                end
             end
-            flingConns = {}
-            if bav then bav:Destroy() end
-            if bv then bv:Destroy() end
-            print("Флинг завершён: " .. targetPlayer.Name)
-            return
-        end
-        -- Поддерживаем вращение и подбрасывание
-        local root = getRoot(targetPlayer)
-        if root then
-            if not root:FindFirstChild("FlingBAV") then
-                bav.Parent = root
-            end
-            if not root:FindFirstChild("FlingBV") then
-                bv.Parent = root
-            end
-        end
-    end)
+        until Time + TimeToWait < tick() or not FlingActive
+    end
 
-    print("Флинг запущен на: " .. targetPlayer.Name)
+    workspace.FallenPartsDestroyHeight = 0 / 0
+
+    local BV = Instance.new("BodyVelocity")
+    BV.Parent = RootPart
+    BV.Velocity = Vector3.new(0, 0, 0)
+    BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+
+    if TRootPart then
+        SFBasePart(TRootPart)
+    elseif THead then
+        SFBasePart(THead)
+    elseif Handle then
+        SFBasePart(Handle)
+    end
+
+    BV:Destroy()
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+    workspace.CurrentCamera.CameraSubject = Humanoid
+
+    if OldPos then
+        repeat
+            RootPart.CFrame = OldPos * CFrame.new(0, 0.5, 0)
+            Character:SetPrimaryPartCFrame(OldPos * CFrame.new(0, 0.5, 0))
+            Humanoid:ChangeState("GettingUp")
+            for _, part in pairs(Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.Velocity = Vector3.new()
+                    part.RotVelocity = Vector3.new()
+                end
+            end
+            task.wait()
+        until (RootPart.Position - OldPos.p).Magnitude < 25
+        workspace.FallenPartsDestroyHeight = FPDH
+    end
 end
 
 -- ====== ГЛАВНОЕ ОКНО ======
@@ -241,7 +308,6 @@ end
 -- ====== КНОПКА 1: ТЕЛЕПОРТ (список игроков) ======
 local tpBtn = createMenuButton("ТП к игроку", Color3.fromRGB(40, 100, 160))
 
--- Контейнер для списка игроков
 local tpListContainer = Instance.new("ScrollingFrame")
 tpListContainer.Size = UDim2.new(1, -20, 0, 150)
 tpListContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
@@ -264,13 +330,11 @@ local tpListVisible = false
 local tpListButtons = {}
 
 local function refreshTpList()
-    -- Очищаем старые кнопки
     for _, btn in pairs(tpListButtons) do
         if btn then btn:Destroy() end
     end
     tpListButtons = {}
 
-    -- Добавляем текущих игроков
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             local btn = Instance.new("TextButton")
@@ -294,20 +358,15 @@ local function refreshTpList()
             table.insert(tpListButtons, btn)
         end
     end
-
-    -- Обновляем размер
     tpListContainer.CanvasSize = UDim2.new(0, 0, 0, #tpListButtons * 31 + 6)
 end
 
 tpBtn.MouseButton1Click:Connect(function()
     tpListVisible = not tpListVisible
     tpListContainer.Visible = tpListVisible
-    if tpListVisible then
-        refreshTpList()
-    end
+    if tpListVisible then refreshTpList() end
 end)
 
--- Обновляем список при входе/выходе игроков
 Players.PlayerAdded:Connect(function()
     if tpListVisible then refreshTpList() end
 end)
@@ -315,7 +374,7 @@ Players.PlayerRemoving:Connect(function()
     if tpListVisible then refreshTpList() end
 end)
 
--- ====== КНОПКА 2: ПИСТОЛЕТ ======
+-- ====== КНОПКА 2: ПИСТОЛЕТ (с KILASIK-флингом) ======
 local pistolBtn = createMenuButton("Выдать пистолет", Color3.fromRGB(60, 120, 50))
 local pistolGiven = false
 
@@ -323,7 +382,7 @@ local function createPistol()
     local tool = Instance.new("Tool")
     tool.Name = "Визуал Пистолет"
     tool.RequiresHandle = true
-    tool.ToolTip = "Стреляй — флинг!"
+    tool.ToolTip = "Стреляй — KILASIK флинг!"
 
     local handle = Instance.new("Part")
     handle.Name = "Handle"
@@ -433,8 +492,14 @@ local function createPistol()
         if rayResult then
             local hitPlayer = getPlayerFromPart(rayResult.Instance)
             if hitPlayer and hitPlayer ~= LocalPlayer then
-                print("Попадание по: " .. hitPlayer.Name .. " — флинг!")
-                flingPlayer(hitPlayer)
+                print("Попадание по: " .. hitPlayer.Name .. " — KILASIK флинг!")
+
+                -- Запускаем KILASIK-флинг в отдельном потоке
+                FlingActive = true
+                task.spawn(function()
+                    KilasikFling(hitPlayer)
+                    FlingActive = false
+                end)
             else
                 print("Промах")
             end
@@ -474,7 +539,7 @@ pistolBtn.MouseButton1Click:Connect(function()
     local tool = createPistol()
     tool.Parent = backpack
     pistolGiven = true
-    print("Пистолет выдан!")
+    print("Пистолет выдан! Стреляйте в игрока — KILASIK флинг.")
 end)
 
 -- ====== КНОПКА 3: Я СИГМА ======
@@ -565,7 +630,6 @@ sigmaBtn.MouseButton1Click:Connect(function()
 
     applySigmaToChar(char)
 
-    -- Поза
     sigmaPoseConn = RunService.RenderStepped:Connect(function()
         if not sigmaPlaying then return end
         local c = LocalPlayer.Character
@@ -596,7 +660,6 @@ sigmaBtn.MouseButton1Click:Connect(function()
         end
     end)
 
-    -- Пульсация света
     sigmaAuraConn = RunService.Heartbeat:Connect(function()
         if not sigmaPlaying then return end
         local root = getRoot(LocalPlayer)
@@ -610,7 +673,7 @@ sigmaBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 4: ПОЛЁТ ======
+-- ====== КНОПКА 4: ПОЛЁТ (улучшенная анимация) ======
 local flyBtn = createMenuButton("Полёт [50]", Color3.fromRGB(0, 150, 200))
 
 local flySpeedPanel = Instance.new("Frame")
@@ -709,36 +772,82 @@ flyBtn.MouseButton1Click:Connect(function()
             root2.AssemblyLinearVelocity = moveVec
         end)
 
+        -- Улучшенная анимация полёта — поза супермена
         flyPoseConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local c = LocalPlayer.Character
             if not c then return end
 
+            local t = os.clock()
+            local bob = math.sin(t * 8) * 0.05 -- лёгкое покачивание
+
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
+                -- R15
                 local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
                 local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
-                local waist = upperTorso.Parent:FindFirstChild("LowerTorso") and upperTorso.Parent.LowerTorso:FindFirstChild("Waist")
+                local rightHip = c:FindFirstChild("RightHip")
+                local leftHip = c:FindFirstChild("LeftHip")
+                local waist = c:FindFirstChild("LowerTorso") and c.LowerTorso:FindFirstChild("Waist")
                 local head = c:FindFirstChild("Head")
                 local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
 
-                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(20)) end
-                if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(-20)) end
-                if waist then waist.Transform = CFrame.Angles(math.rad(15), 0, 0) end
-                if neck then neck.Transform = CFrame.Angles(math.rad(10), 0, 0) end
+                -- Руки вытянуты вперёд — поза супермена
+                if rightShoulder then
+                    rightShoulder.Transform = CFrame.Angles(math.rad(-90 + bob * 20), math.rad(15), math.rad(-5))
+                end
+                if leftShoulder then
+                    leftShoulder.Transform = CFrame.Angles(math.rad(-90 - bob * 20), math.rad(-15), math.rad(5))
+                end
+                -- Ноги вытянуты назад, слегка разведены
+                if rightHip then
+                    rightHip.Transform = CFrame.Angles(math.rad(5 + bob * 10), 0, math.rad(-10))
+                end
+                if leftHip then
+                    leftHip.Transform = CFrame.Angles(math.rad(5 - bob * 10), 0, math.rad(10))
+                end
+                -- Корпус наклонён вперёд
+                if waist then
+                    waist.Transform = CFrame.Angles(math.rad(20), 0, 0)
+                end
+                -- Голова смотрит вперёд
+                if neck then
+                    neck.Transform = CFrame.Angles(math.rad(-15), 0, 0)
+                end
             else
+                -- R6
                 local torso = c:FindFirstChild("Torso")
                 if torso then
                     local rightShoulder = torso:FindFirstChild("Right Shoulder")
                     local leftShoulder = torso:FindFirstChild("Left Shoulder")
+                    local rightHip = torso:FindFirstChild("Right Hip")
+                    local leftHip = torso:FindFirstChild("Left Hip")
                     local head = c:FindFirstChild("Head")
                     local neck = head and head:FindFirstChild("Neck")
                     local rootJoint = c:FindFirstChild("HumanoidRootPart") and c.HumanoidRootPart:FindFirstChild("RootJoint")
 
-                    if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(20)) end
-                    if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-120), 0, math.rad(-20)) end
-                    if neck then neck.Transform = CFrame.Angles(math.rad(10), 0, 0) end
-                    if rootJoint then rootJoint.Transform = CFrame.Angles(math.rad(15), 0, 0) end
+                    -- Руки вперёд
+                    if rightShoulder then
+                        rightShoulder.Transform = CFrame.Angles(math.rad(-90 + bob * 20), math.rad(15), math.rad(-5))
+                    end
+                    if leftShoulder then
+                        leftShoulder.Transform = CFrame.Angles(math.rad(-90 - bob * 20), math.rad(-15), math.rad(5))
+                    end
+                    -- Ноги назад
+                    if rightHip then
+                        rightHip.Transform = CFrame.Angles(math.rad(5 + bob * 10), 0, math.rad(-10))
+                    end
+                    if leftHip then
+                        leftHip.Transform = CFrame.Angles(math.rad(5 - bob * 10), 0, math.rad(10))
+                    end
+                    -- Голова вперёд
+                    if neck then
+                        neck.Transform = CFrame.Angles(math.rad(-15), 0, 0)
+                    end
+                    -- Корпус наклонён
+                    if rootJoint then
+                        rootJoint.Transform = CFrame.Angles(math.rad(20), 0, 0)
+                    end
                 end
             end
         end)
@@ -916,28 +1025,25 @@ killBtn.TextSize = 14
 killBtn.Parent = screenGui
 
 killBtn.MouseButton1Click:Connect(function()
+    FlingActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
     if flyConn then flyConn:Disconnect() end
     if flyPoseConn then flyPoseConn:Disconnect() end
     if godModeConn then godModeConn:Disconnect() end
-    for _, c in pairs(flingConns) do if c then c:Disconnect() end end
     removeSigmaEffectsFromChar(LocalPlayer.Character)
     screenGui:Destroy()
 end)
 
--- ====== РЕСПАВН: переустановка эффектов после смерти ======
+-- ====== РЕСПАВН ======
 LocalPlayer.CharacterAdded:Connect(function(newChar)
-    -- Ждём пока персонаж прогрузится
     newChar:WaitForChild("HumanoidRootPart")
 
-    -- Если сигма активна — заново накладываем эффекты на новый персонаж
     if sigmaPlaying then
         task.wait(0.5)
         local newRoot = newChar:FindFirstChild("HumanoidRootPart")
         if newRoot then
-            -- Переносим звук
             if sigmaSound then
                 sigmaSound.Parent = newRoot
                 sigmaSound:Play()
@@ -946,7 +1052,6 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         end
     end
 
-    -- Если полёт активен — заново обнуляем скорость
     if flying then
         local h = newChar:FindFirstChildOfClass("Humanoid")
         if h then
@@ -956,35 +1061,34 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         end
     end
 
-    -- Если режим бога активен — заново даём бессмертие
-    local h = newChar:FindFirstChildOfClass("Humanoid")
-    if h and godModeConn and godModeConn.Connected then
-        task.wait(0.5)
-        h.MaxHealth = math.huge
-        h.Health = math.huge
-        h.BreakJointsOnDeath = false
+    if godModeConn and godModeConn.Connected then
+        local h = newChar:FindFirstChildOfClass("Humanoid")
+        if h then
+            task.wait(0.5)
+            h.MaxHealth = math.huge
+            h.Health = math.huge
+            h.BreakJointsOnDeath = false
 
-        local root = newChar:FindFirstChild("HumanoidRootPart")
-        if root and not root:FindFirstChild("GodModeLight") then
-            local goldLight = Instance.new("PointLight")
-            goldLight.Color = Color3.fromRGB(255, 215, 0)
-            goldLight.Brightness = 8
-            goldLight.Range = 20
-            goldLight.Name = "GodModeLight"
-            goldLight.Parent = root
-        end
-        if not newChar:FindFirstChild("GodModeHighlight") then
-            local goldHighlight = Instance.new("Highlight")
-            goldHighlight.FillColor = Color3.fromRGB(255, 215, 0)
-            goldHighlight.OutlineColor = Color3.fromRGB(255, 255, 100)
-            goldHighlight.FillTransparency = 0.8
-            goldHighlight.OutlineTransparency = 0
-            goldHighlight.Name = "GodModeHighlight"
-            goldHighlight.Parent = newChar
+            local root = newChar:FindFirstChild("HumanoidRootPart")
+            if root and not root:FindFirstChild("GodModeLight") then
+                local goldLight = Instance.new("PointLight")
+                goldLight.Color = Color3.fromRGB(255, 215, 0)
+                goldLight.Brightness = 8
+                goldLight.Range = 20
+                goldLight.Name = "GodModeLight"
+                goldLight.Parent = root
+            end
+            if not newChar:FindFirstChild("GodModeHighlight") then
+                local goldHighlight = Instance.new("Highlight")
+                goldHighlight.FillColor = Color3.fromRGB(255, 215, 0)
+                goldHighlight.OutlineColor = Color3.fromRGB(255, 255, 100)
+                goldHighlight.FillTransparency = 0.8
+                goldHighlight.OutlineTransparency = 0
+                goldHighlight.Name = "GodModeHighlight"
+                goldHighlight.Parent = newChar
+            end
         end
     end
 
-    -- Пистолет заново выдаётся в Backpack автоматически при респавне,
-    -- но pistolGiven = true мешает. Сбрасываем, чтобы можно было выдать снова.
     pistolGiven = false
 end)
