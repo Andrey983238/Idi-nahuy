@@ -12,8 +12,7 @@ local flySpeed = 50
 local speedActive = false
 local walkSpeed = 16
 local speedMaintainConn = nil
-local nukeActive = false
-local nukeConnections = {}
+local nukeCooldown = false
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
@@ -1107,209 +1106,178 @@ luckyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 7: ЯДЕРНАЯ БОМБА (УЛУЧШЕННАЯ) ======
+-- ====== КНОПКА 7: ПУЛЬТ ЯДЕРКИ И ВЗРЫВ ======
 local function cleanupNukeEffects()
-    for _, conn in ipairs(nukeConnections) do
-        if conn and conn.Disconnect then
-            conn:Disconnect()
-        end
-    end
-    nukeConnections = {}
-
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "NukeFireball" or obj.Name == "NukeShockwave" or obj.Name:find("Nuke")) then
-            obj:Destroy()
-        elseif obj:IsA("ParticleEmitter") and obj.Name and obj.Name:find("Nuke") then
+        if obj:IsA("BasePart") and (obj.Name == "NukeBomb" or obj.Name == "NukeShockwave" or obj.Name == "NoseCone") then
             obj:Destroy()
         end
     end
 end
 
-local function createNukeVisuals(position)
-    cleanupNukeEffects()
+local function createNukeModel()
+    local bomb = Instance.new("Part")
+    bomb.Name = "NukeBomb"
+    bomb.Size = Vector3.new(4, 8, 4)
+    bomb.Color = Color3.fromRGB(100, 100, 100)
+    bomb.Material = Enum.Material.Metal
+    bomb.CanCollide = false
+    bomb.Anchored = true
+    bomb.Parent = workspace
 
-    local radius = 150
-    local intensity = 25
+    -- Носовая часть (конус)
+    local nose = Instance.new("WedgePart")
+    nose.Name = "NoseCone"
+    nose.Size = Vector3.new(4, 4, 4)
+    nose.Color = Color3.fromRGB(80, 80, 90)
+    nose.Material = Enum.Material.Plastic
+    nose.CanCollide = false
+    nose.CFrame = bomb.CFrame * CFrame.new(0, 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+    nose.Parent = bomb
 
-    -- ОГНЕННЫЙ ШАР
-    local fireball = Instance.new("Part")
-    fireball.Name = "NukeFireball"
-    fireball.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
-    fireball.Position = position
-    fireball.Material = Enum.Material.Neon
-    fireball.Color = Color3.fromRGB(255, 100, 0)
-    fireball.Transparency = 0.3
-    fireball.CanCollide = false
-    fireball.Anchored = true
-    fireball.Parent = workspace
+    -- Стабилизаторы
+    for i = 1, 4 do
+        local fin = Instance.new("Part")
+        fin.Size = Vector3.new(1, 2, 0.5)
+        fin.Color = Color3.fromRGB(70, 70, 80)
+        fin.Material = Enum.Material.Metal
+        fin.CanCollide = false
+        fin.Anchored = false
 
-    local fireballLight = Instance.new("PointLight")
-    fireballLight.Brightness = intensity
-    fireballLight.Range = radius * 3
-    fireballLight.Color = Color3.fromRGB(255, 200, 50)
-    fireballLight.Parent = fireball
+        local angle = (i - 1) * 90
+        local cf = CFrame.Angles(0, math.rad(angle), 0) * CFrame.new(2, -2, 0)
+        fin.CFrame = bomb.CFrame * cf
+        fin.Parent = bomb
 
-    local pulseConn = RunService.Heartbeat:Connect(function()
-        if not fireball or not fireball.Parent then
-            pulseConn:Disconnect()
-            return
-        end
-        local t = tick() % 2
-        fireball.Size = Vector3.new(
-            radius * 2 + math.sin(t * 10) * 20,
-            radius * 2 + math.sin(t * 10) * 20,
-            radius * 2 + math.sin(t * 10) * 20
-        )
-        fireballLight.Brightness = intensity + math.sin(t * 5) * 5
-    end)
-    table.insert(nukeConnections, pulseConn)
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = bomb
+        weld.Part1 = fin
+        weld.Parent = bomb
+    end
 
-    -- УДАРНАЯ ВОЛНА
-    local shockwave = Instance.new("Part")
-    shockwave.Name = "NukeShockwave"
-    shockwave.Size = Vector3.new(1, 1, 1)
-    shockwave.Position = position
-    shockwave.Material = Enum.Material.ForceField
-    shockwave.Color = Color3.fromRGB(255, 255, 255)
-    shockwave.Transparency = 0.8
-    shockwave.CanCollide = false
-    shockwave.Anchored = true
-    shockwave.Parent = workspace
-
-    local expandConn = RunService.Heartbeat:Connect(function()
-        if not shockwave or not shockwave.Parent then
-            expandConn:Disconnect()
-            return
-        end
-        shockwave.Size = shockwave.Size + Vector3.new(4, 4, 4)
-        shockwave.Transparency = math.max(0, shockwave.Transparency - 0.01)
-        if shockwave.Size.X > radius * 4 then
-            shockwave:Destroy()
-            expandConn:Disconnect()
-        end
-    end)
-    table.insert(nukeConnections, expandConn)
-
-    -- ГРИБОВИДНОЕ ОБЛАКО
-    local cloudRoot = Instance.new("Part")
-    cloudRoot.Name = "NukeCloudRoot"
-    cloudRoot.Position = position + Vector3.new(0, 10, 0)
-    cloudRoot.Anchored = true
-    cloudRoot.CanCollide = false
-    cloudRoot.Transparency = 1
-    cloudRoot.Parent = workspace
-
-    local particles = Instance.new("ParticleEmitter")
-    particles.Name = "NukeMushroomParticles"
-    particles.Texture = "rbxassetid://1371793"
-    particles.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 100, 100)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(50, 50, 50)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
-    })
-    particles.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 2),
-        NumberSequenceKeypoint.new(1, 20)
-    })
-    particles.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(1, 1)
-    })
-    particles.Lifetime = NumberRange.new(3, 6)
-    particles.Rate = 500
-    particles.Speed = NumberRange.new(20, 40)
-    particles.SpreadAngle = Vector2.new(90, 90)
-    particles.Rotation = NumberRange.new(-180, 180)
-    particles.RotSpeed = NumberRange.new(100, 300)
-    particles.Parent = cloudRoot
-
-    -- ЭФФЕКТ НА КАМЕРЕ
-    local camera = workspace.CurrentCamera
-    local originalFieldOfView = camera.FieldOfView
-
-    camera.FieldOfView = 120
-
-    local flashPart = Instance.new("Part")
-    flashPart.Anchored = true
-    flashPart.CanCollide = false
-    flashPart.Size = Vector3.new(5000, 5000, 5000)
-    flashPart.Position = camera.CFrame.p
-    flashPart.Material = Enum.Material.Neon
-    flashPart.Color = Color3.new(1, 1, 1)
-    flashPart.Transparency = 0.5
-    flashPart.Parent = camera
-
-    local shakeConn = RunService.RenderStepped:Connect(function()
-        if not flashPart or not flashPart.Parent then
-            shakeConn:Disconnect()
-            return
-        end
-        local offset = Vector3.new(
-            math.sin(tick() * 20) * 10,
-            math.cos(tick() * 20) * 10,
-            0
-        )
-        flashPart.Position = camera.CFrame.p + offset
-    end)
-    table.insert(nukeConnections, shakeConn)
-
-    task.wait(2)
-    if flashPart and flashPart.Parent then flashPart:Destroy() end
-
-    task.wait(10)
-    if cloudRoot and cloudRoot.Parent then cloudRoot:Destroy() end
-    if fireball and fireball.Parent then fireball:Destroy() end
-
-    camera.FieldOfView = originalFieldOfView
+    return bomb
 end
 
-local function playNukeSounds()
-    local sound1 = Instance.new("Sound")
-    sound1.SoundId = "rbxassetid://2734842869"
-    sound1.Volume = 2
-    sound1.Parent = workspace
-    sound1:Play()
+local function launchNuke()
+    if nukeCooldown then return end
+    nukeCooldown = true
 
-    task.wait(3)
-
-    local sound2 = Instance.new("Sound")
-    sound2.SoundId = "rbxassetid://6057498964"
-    sound2.Volume = 1.5
-    sound2.Parent = workspace
-    sound2:Play()
-end
-
-local nukeBtn = createMenuButton("ЯДЕРКА [УЛУЧШЕНА]", Color3.fromRGB(200, 0, 0))
-
-nukeBtn.MouseButton1Click:Connect(function()
-    if nukeActive then return end
-    nukeActive = true
-
-    local root = getRoot(LocalPlayer)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then
-        nukeActive = false
+        nukeCooldown = false
         return
     end
 
-    local nukePos = root.Position
+    cleanupNukeEffects()
 
-    task.spawn(function()
-        createNukeVisuals(nukePos)
+    local spawnPos = root.Position + Vector3.new(0, 200, 0)
+    local bomb = createNukeModel()
+    bomb.Position = spawnPos
+
+    -- Звук падения
+    local whistleSound = Instance.new("Sound")
+    whistleSound.SoundId = "rbxassetid://130835443"
+    whistleSound.Volume = 1
+    whistleSound.Parent = bomb
+    whistleSound:Play()
+
+    local fallSpeed = 40
+    local gravity = 30
+    local currentPos = spawnPos
+
+    local fallConn = nil
+    fallConn = RunService.Heartbeat:Connect(function(dt)
+        if not bomb or not bomb.Parent then
+            if fallConn then fallConn:Disconnect() end
+            return
+        end
+
+        currentPos = currentPos - Vector3.new(0, fallSpeed * dt, 0)
+        fallSpeed = fallSpeed + gravity * dt
+        bomb.Position = currentPos
+        bomb.CFrame = CFrame.new(bomb.Position) * CFrame.Angles(math.rad(45), 0, 0)
+
+        if currentPos.Y <= root.Position.Y + 50 then
+            if fallConn then fallConn:Disconnect() end
+            bomb:Destroy()
+
+            local blastRadius = 150
+            local explosionPos = root.Position
+
+            -- Ударная волна
+            local shockwave = Instance.new("Part")
+            shockwave.Name = "NukeShockwave"
+            shockwave.Size = Vector3.new(blastRadius * 2, 2, blastRadius * 2)
+            shockwave.Position = explosionPos + Vector3.new(0, 1, 0)
+            shockwave.Color = Color3.fromRGB(255, 180, 50)
+            shockwave.Material = Enum.Material.Neon
+            shockwave.Transparency = 0.5
+            shockwave.CanCollide = false
+            shockwave.Anchored = true
+            shockwave.Parent = workspace
+
+            local flashLight = Instance.new("PointLight")
+            flashLight.Brightness = 20
+            flashLight.Range = blastRadius * 1.5
+            flashLight.Color = Color3.fromRGB(255, 255, 200)
+            flashLight.Parent = shockwave
+
+            -- Звук взрыва
+            local boomSound = Instance.new("Sound")
+            boomSound.SoundId = "rbxassetid://2734842869"
+            boomSound.Volume = 3
+            boomSound.Parent = workspace
+            boomSound:Play()
+
+            local expandConn = nil
+            expandConn = RunService.Heartbeat:Connect(function(stepDt)
+                if not shockwave or not shockwave.Parent then
+                    if expandConn then expandConn:Disconnect() end
+                    return
+                end
+
+                shockwave.Size = shockwave.Size + Vector3.new(10 * stepDt, 0, 10 * stepDt)
+                shockwave.Transparency = math.min(1, shockwave.Transparency + 0.02 * stepDt)
+
+                -- Отталкивание игроков
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    local pChar = plr.Character
+                    if pChar then
+                        local pRoot = pChar:FindFirstChild("HumanoidRootPart")
+                        if pRoot then
+                            local dist = (pRoot.Position - explosionPos).Magnitude
+                            if dist < shockwave.Size.X / 2 then
+                                pRoot.AssemblyLinearVelocity = (pRoot.Position - explosionPos).Unit * 150
+                                local humanoid = pChar:FindFirstChildOfClass("Humanoid")
+                                if humanoid then
+                                    humanoid:TakeDamage(50)
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if shockwave.Size.X > blastRadius * 3 then
+                    shockwave:Destroy()
+                    flashLight:Destroy()
+                    expandConn:Disconnect()
+
+                    task.wait(1)
+                    nukeCooldown = false
+                end
+            end)
+        end
     end)
-    task.spawn(function()
-        playNukeSounds()
-    end)
+end
 
-    nukeBtn.Text = "ПЕРЕЗАРЯДКА..."
-    nukeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    nukeBtn.Active = false
-
-    task.wait(60)
-
-    nukeActive = false
-    nukeBtn.Text = "ЯДЕРКА [УЛУЧШЕНА]"
-    nukeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-    nukeBtn.Active = true
+local nukeBtn = createMenuButton("ПУЛЬТ: ЯДЕРКА", Color3.fromRGB(128, 0, 255))
+nukeBtn.MouseButton1Click:Connect(function()
+    if nukeCooldown then
+        warn("Ядерка на кулдауне!")
+        return
+    end
+    launchNuke()
 end)
 
 -- ====== КНОПКА 8: КРАШ ======
@@ -1356,7 +1324,7 @@ killBtn.Parent = screenGui
 killBtn.MouseButton1Click:Connect(function()
     FlingActive = false
     speedActive = false
-    nukeActive = false
+    nukeCooldown = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
