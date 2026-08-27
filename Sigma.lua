@@ -185,7 +185,7 @@ local function KilasikFling(TargetPlayer)
     if OldPos then
         repeat
             RootPart.CFrame = OldPos * CFrame.new(0, 0.5, 0)
-            Character:SetPrimaryPartCFrame(OldPos * CFrame.new(0, 0.5, 0)
+            Character:SetPrimaryPartCFrame(OldPos * CFrame.new(0, 0.5, 0))
             Humanoid:ChangeState("GettingUp")
             for _, part in pairs(Character:GetChildren()) do
                 if part:IsA("BasePart") then
@@ -1300,7 +1300,6 @@ nukeBtn.MouseButton1Click:Connect(function()
 
     local mouse = LocalPlayer:GetMouse()
 
-    -- Маркер
     local marker = Instance.new("Part")
     marker.Name = "NukeMarker"
     marker.Size = Vector3.new(16, 0.2, 16)
@@ -1322,7 +1321,6 @@ nukeBtn.MouseButton1Click:Connect(function()
     beam.Anchored = true
     beam.Parent = workspace
 
-    -- Маркер следует за мышью
     local followConn = RunService.RenderStepped:Connect(function()
         if not nukeAiming or not marker or not marker.Parent then
             followConn:Disconnect()
@@ -1340,11 +1338,9 @@ nukeBtn.MouseButton1Click:Connect(function()
         end
     end)
 
-    -- Ждём один кадр, чтобы клик по кнопке не запустил ядерку
     task.wait()
     if not nukeAiming then return end
 
-    -- ЛКМ — запуск (через UserInputService, игнорируем клики по GUI)
     local clickConn
     clickConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not nukeAiming then
@@ -1371,7 +1367,6 @@ nukeBtn.MouseButton1Click:Connect(function()
         nukeBtn.Text = "ЯДЕРКА ЛЕТИТ!"
         nukeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 
-        -- Спавн бомбы над целью
         local spawnPos = targetPos + Vector3.new(0, 250, 0)
         local bomb = createNukeModel(spawnPos, targetPos)
 
@@ -1410,7 +1405,6 @@ nukeBtn.MouseButton1Click:Connect(function()
         end)
     end)
 
-    -- ПКМ — отмена
     local cancelConn
     cancelConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not nukeAiming then
