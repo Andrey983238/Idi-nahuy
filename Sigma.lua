@@ -4,7 +4,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- Forward-declare переменные, которые используются в разных секциях
+-- Forward-declare переменные
 local flying = false
 local flyConn = nil
 local flyPoseConn = nil
@@ -12,6 +12,8 @@ local flySpeed = 50
 local speedActive = false
 local walkSpeed = 16
 local speedMaintainConn = nil
+local nukeActive = false
+local nukeConnections = {}
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaGui"
@@ -1105,227 +1107,209 @@ luckyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 7: ПУЛЬТ ОТ ЯДЕРКИ ======
-local nukeBtn = createMenuButton("Пульт от ядерки", Color3.fromRGB(200, 50, 50))
-local nukeGiven = false
+-- ====== КНОПКА 7: ЯДЕРНАЯ БОМБА (УЛУЧШЕННАЯ) ======
+local function cleanupNukeEffects()
+    for _, conn in ipairs(nukeConnections) do
+        if conn and conn.Disconnect then
+            conn:Disconnect()
+        end
+    end
+    nukeConnections = {}
 
-local function createNukeRemote()
-    local tool = Instance.new("Tool")
-    tool.Name = "Пульт от ядерки"
-    tool.RequiresHandle = true
-    tool.ToolTip = "Нажми ЛКМ — запустить ядерку!"
-
-    local handle = Instance.new("Part")
-    handle.Name = "Handle"
-    handle.Size = Vector3.new(0.5, 0.3, 0.8)
-    handle.Color = Color3.fromRGB(30, 30, 35)
-    handle.Material = Enum.Material.Metal
-    handle.CanCollide = false
-    handle.Parent = tool
-
-    local redBtn = Instance.new("Part")
-    redBtn.Name = "RedButton"
-    redBtn.Size = Vector3.new(0.3, 0.1, 0.3)
-    redBtn.Color = Color3.fromRGB(255, 0, 0)
-    redBtn.Material = Enum.Material.Neon
-    redBtn.CanCollide = false
-    redBtn.CFrame = handle.CFrame * CFrame.new(0, 0.2, 0)
-    redBtn.Parent = tool
-
-    local weld1 = Instance.new("WeldConstraint")
-    weld1.Part0 = handle
-    weld1.Part1 = redBtn
-    weld1.Parent = handle
-
-    local antenna = Instance.new("Part")
-    antenna.Name = "Antenna"
-    antenna.Size = Vector3.new(0.05, 0.5, 0.05)
-    antenna.Color = Color3.fromRGB(100, 100, 110)
-    antenna.Material = Enum.Material.Metal
-    antenna.CanCollide = false
-    antenna.CFrame = handle.CFrame * CFrame.new(0, 0.4, -0.3)
-    antenna.Parent = tool
-
-    local weld2 = Instance.new("WeldConstraint")
-    weld2.Part0 = handle
-    weld2.Part1 = antenna
-    weld2.Parent = handle
-
-    local indicator = Instance.new("Part")
-    indicator.Name = "Indicator"
-    indicator.Size = Vector3.new(0.08, 0.08, 0.08)
-    indicator.Shape = Enum.PartType.Ball
-    indicator.Color = Color3.fromRGB(0, 255, 0)
-    indicator.Material = Enum.Material.Neon
-    indicator.CanCollide = false
-    indicator.CFrame = handle.CFrame * CFrame.new(0, 0.15, 0.25)
-    indicator.Parent = tool
-
-    local weld3 = Instance.new("WeldConstraint")
-    weld3.Part0 = handle
-    weld3.Part1 = indicator
-    weld3.Parent = handle
-
-    local indicatorLight = Instance.new("PointLight")
-    indicatorLight.Color = Color3.fromRGB(0, 255, 0)
-    indicatorLight.Brightness = 2
-    indicatorLight.Range = 3
-    indicatorLight.Parent = indicator
-
-    tool.Activated:Connect(function()
-        local localRoot = getRoot(LocalPlayer)
-        if not localRoot then return end
-
-        indicator.Color = Color3.fromRGB(255, 0, 0)
-        indicatorLight.Color = Color3.fromRGB(255, 0, 0)
-
-        local siren = Instance.new("Sound")
-        siren.SoundId = "rbxassetid://130835443"
-        siren.Volume = 2
-        siren.Parent = handle
-        siren:Play()
-
-        local bombPos = localRoot.Position + Vector3.new(math.random(-30, 30), 200, math.random(-30, 30))
-        local bomb = Instance.new("Part")
-        bomb.Name = "NukeBomb"
-        bomb.Size = Vector3.new(4, 8, 4)
-        bomb.Color = Color3.fromRGB(40, 40, 50)
-        bomb.Material = Enum.Material.Metal
-        bomb.CanCollide = false
-        bomb.Anchored = false
-        bomb.CFrame = CFrame.new(bombPos)
-        bomb.Parent = workspace
-
-        local tail = Instance.new("Part")
-        tail.Size = Vector3.new(2, 3, 2)
-        tail.Color = Color3.fromRGB(60, 60, 70)
-        tail.Material = Enum.Material.Metal
-        tail.CanCollide = false
-        tail.CFrame = bomb.CFrame * CFrame.new(0, 4, 0)
-        tail.Parent = bomb
-
-        local tailWeld = Instance.new("WeldConstraint")
-        tailWeld.Part0 = bomb
-        tailWeld.Part1 = tail
-        tailWeld.Parent = bomb
-
-        local bombLight = Instance.new("PointLight")
-        bombLight.Color = Color3.fromRGB(255, 0, 0)
-        bombLight.Brightness = 5
-        bombLight.Range = 20
-        bombLight.Parent = bomb
-
-        local smoke = Instance.new("ParticleEmitter")
-        smoke.Texture = "rbxassetid://243660364"
-        smoke.Color = ColorSequence.new(Color3.fromRGB(80, 80, 80))
-        smoke.Size = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 3),
-            NumberSequenceKeypoint.new(1, 8),
-        })
-        smoke.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.3),
-            NumberSequenceKeypoint.new(1, 1),
-        })
-        smoke.Lifetime = NumberRange.new(1, 2)
-        smoke.Rate = 50
-        smoke.Speed = NumberRange.new(1, 3)
-        smoke.Parent = bomb
-
-        local blinkOn = true
-        local bombSound = Instance.new("Sound")
-        bombSound.SoundId = "rbxassetid://130835443"
-        bombSound.Volume = 1.5
-        bombSound.Parent = bomb
-
-        local blinkConn
-        blinkConn = RunService.Heartbeat:Connect(function()
-            if not bomb or not bomb.Parent then
-                if blinkConn then blinkConn:Disconnect() end
-                return
-            end
-
-            blinkOn = not blinkOn
-            bomb.Color = blinkOn and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(40, 40, 50)
-            bombLight.Brightness = blinkOn and 10 or 2
-
-            if blinkOn then
-                bombSound:Play()
-            end
-
-            local root = getRoot(LocalPlayer)
-            if root then
-                local heightDiff = bomb.Position.Y - root.Position.Y
-                if heightDiff < 15 then
-                    if blinkConn then blinkConn:Disconnect() end
-
-                    smoke.Enabled = false
-                    bomb:Destroy()
-
-                    local explosion = Instance.new("Explosion")
-                    explosion.Position = root.Position
-                    explosion.BlastRadius = 100
-                    explosion.BlastPressure = 500000
-                    explosion.DestroyJointRadiusPercent = 1
-                    explosion.Parent = workspace
-
-                    local blastBall = Instance.new("Part")
-                    blastBall.Shape = Enum.PartType.Ball
-                    blastBall.Size = Vector3.new(10, 10, 10)
-                    blastBall.Color = Color3.fromRGB(255, 200, 50)
-                    blastBall.Material = Enum.Material.Neon
-                    blastBall.Anchored = true
-                    blastBall.CanCollide = false
-                    blastBall.CFrame = CFrame.new(root.Position)
-                    blastBall.Parent = workspace
-
-                    local boomSound = Instance.new("Sound")
-                    boomSound.SoundId = "rbxassetid://130835443"
-                    boomSound.Volume = 5
-                    boomSound.Parent = blastBall
-                    boomSound:Play()
-
-                    task.spawn(function()
-                        for i = 1, 30 do
-                            if not blastBall or not blastBall.Parent then break end
-                            blastBall.Size = blastBall.Size + Vector3.new(8, 8, 8)
-                            blastBall.Transparency = i / 30
-                            task.wait(0.03)
-                        end
-                        if blastBall then blastBall:Destroy() end
-                    end)
-
-                    if root then
-                        root.AssemblyLinearVelocity = Vector3.new(
-                            math.random(-100, 100),
-                            300,
-                            math.random(-100, 100)
-                        )
-                    end
-
-                    local humanoid = getHumanoid(LocalPlayer)
-                    if humanoid then
-                        humanoid.Health = 0
-                    end
-
-                    indicator.Color = Color3.fromRGB(0, 255, 0)
-                    indicatorLight.Color = Color3.fromRGB(0, 255, 0)
-                end
-            end
-        end)
-    end)
-
-    return tool
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Name == "NukeFireball" or obj.Name == "NukeShockwave" or obj.Name:find("Nuke")) then
+            obj:Destroy()
+        elseif obj:IsA("ParticleEmitter") and obj.Name and obj.Name:find("Nuke") then
+            obj:Destroy()
+        end
+    end
 end
 
+local function createNukeVisuals(position)
+    cleanupNukeEffects()
+
+    local radius = 150
+    local intensity = 25
+
+    -- ОГНЕННЫЙ ШАР
+    local fireball = Instance.new("Part")
+    fireball.Name = "NukeFireball"
+    fireball.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
+    fireball.Position = position
+    fireball.Material = Enum.Material.Neon
+    fireball.Color = Color3.fromRGB(255, 100, 0)
+    fireball.Transparency = 0.3
+    fireball.CanCollide = false
+    fireball.Anchored = true
+    fireball.Parent = workspace
+
+    local fireballLight = Instance.new("PointLight")
+    fireballLight.Brightness = intensity
+    fireballLight.Range = radius * 3
+    fireballLight.Color = Color3.fromRGB(255, 200, 50)
+    fireballLight.Parent = fireball
+
+    local pulseConn = RunService.Heartbeat:Connect(function()
+        if not fireball or not fireball.Parent then
+            pulseConn:Disconnect()
+            return
+        end
+        local t = tick() % 2
+        fireball.Size = Vector3.new(
+            radius * 2 + math.sin(t * 10) * 20,
+            radius * 2 + math.sin(t * 10) * 20,
+            radius * 2 + math.sin(t * 10) * 20
+        )
+        fireballLight.Brightness = intensity + math.sin(t * 5) * 5
+    end)
+    table.insert(nukeConnections, pulseConn)
+
+    -- УДАРНАЯ ВОЛНА
+    local shockwave = Instance.new("Part")
+    shockwave.Name = "NukeShockwave"
+    shockwave.Size = Vector3.new(1, 1, 1)
+    shockwave.Position = position
+    shockwave.Material = Enum.Material.ForceField
+    shockwave.Color = Color3.fromRGB(255, 255, 255)
+    shockwave.Transparency = 0.8
+    shockwave.CanCollide = false
+    shockwave.Anchored = true
+    shockwave.Parent = workspace
+
+    local expandConn = RunService.Heartbeat:Connect(function()
+        if not shockwave or not shockwave.Parent then
+            expandConn:Disconnect()
+            return
+        end
+        shockwave.Size = shockwave.Size + Vector3.new(4, 4, 4)
+        shockwave.Transparency = math.max(0, shockwave.Transparency - 0.01)
+        if shockwave.Size.X > radius * 4 then
+            shockwave:Destroy()
+            expandConn:Disconnect()
+        end
+    end)
+    table.insert(nukeConnections, expandConn)
+
+    -- ГРИБОВИДНОЕ ОБЛАКО
+    local cloudRoot = Instance.new("Part")
+    cloudRoot.Name = "NukeCloudRoot"
+    cloudRoot.Position = position + Vector3.new(0, 10, 0)
+    cloudRoot.Anchored = true
+    cloudRoot.CanCollide = false
+    cloudRoot.Transparency = 1
+    cloudRoot.Parent = workspace
+
+    local particles = Instance.new("ParticleEmitter")
+    particles.Name = "NukeMushroomParticles"
+    particles.Texture = "rbxassetid://1371793"
+    particles.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 100, 100)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(50, 50, 50)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
+    })
+    particles.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 2),
+        NumberSequenceKeypoint.new(1, 20)
+    })
+    particles.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    particles.Lifetime = NumberRange.new(3, 6)
+    particles.Rate = 500
+    particles.Speed = NumberRange.new(20, 40)
+    particles.SpreadAngle = Vector2.new(90, 90)
+    particles.Rotation = NumberRange.new(-180, 180)
+    particles.RotSpeed = NumberRange.new(100, 300)
+    particles.Parent = cloudRoot
+
+    -- ЭФФЕКТ НА КАМЕРЕ
+    local camera = workspace.CurrentCamera
+    local originalFieldOfView = camera.FieldOfView
+
+    camera.FieldOfView = 120
+
+    local flashPart = Instance.new("Part")
+    flashPart.Anchored = true
+    flashPart.CanCollide = false
+    flashPart.Size = Vector3.new(5000, 5000, 5000)
+    flashPart.Position = camera.CFrame.p
+    flashPart.Material = Enum.Material.Neon
+    flashPart.Color = Color3.new(1, 1, 1)
+    flashPart.Transparency = 0.5
+    flashPart.Parent = camera
+
+    local shakeConn = RunService.RenderStepped:Connect(function()
+        if not flashPart or not flashPart.Parent then
+            shakeConn:Disconnect()
+            return
+        end
+        local offset = Vector3.new(
+            math.sin(tick() * 20) * 10,
+            math.cos(tick() * 20) * 10,
+            0
+        )
+        flashPart.Position = camera.CFrame.p + offset
+    end)
+    table.insert(nukeConnections, shakeConn)
+
+    task.wait(2)
+    if flashPart and flashPart.Parent then flashPart:Destroy() end
+
+    task.wait(10)
+    if cloudRoot and cloudRoot.Parent then cloudRoot:Destroy() end
+    if fireball and fireball.Parent then fireball:Destroy() end
+
+    camera.FieldOfView = originalFieldOfView
+end
+
+local function playNukeSounds()
+    local sound1 = Instance.new("Sound")
+    sound1.SoundId = "rbxassetid://2734842869"
+    sound1.Volume = 2
+    sound1.Parent = workspace
+    sound1:Play()
+
+    task.wait(3)
+
+    local sound2 = Instance.new("Sound")
+    sound2.SoundId = "rbxassetid://6057498964"
+    sound2.Volume = 1.5
+    sound2.Parent = workspace
+    sound2:Play()
+end
+
+local nukeBtn = createMenuButton("ЯДЕРКА [УЛУЧШЕНА]", Color3.fromRGB(200, 0, 0))
+
 nukeBtn.MouseButton1Click:Connect(function()
-    if nukeGiven then return end
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if not backpack then
-        backpack = LocalPlayer:WaitForChild("Backpack")
+    if nukeActive then return end
+    nukeActive = true
+
+    local root = getRoot(LocalPlayer)
+    if not root then
+        nukeActive = false
+        return
     end
-    local tool = createNukeRemote()
-    tool.Parent = backpack
-    nukeGiven = true
+
+    local nukePos = root.Position
+
+    task.spawn(function()
+        createNukeVisuals(nukePos)
+    end)
+    task.spawn(function()
+        playNukeSounds()
+    end)
+
+    nukeBtn.Text = "ПЕРЕЗАРЯДКА..."
+    nukeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    nukeBtn.Active = false
+
+    task.wait(60)
+
+    nukeActive = false
+    nukeBtn.Text = "ЯДЕРКА [УЛУЧШЕНА]"
+    nukeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    nukeBtn.Active = true
 end)
 
 -- ====== КНОПКА 8: КРАШ ======
@@ -1372,6 +1356,7 @@ killBtn.Parent = screenGui
 killBtn.MouseButton1Click:Connect(function()
     FlingActive = false
     speedActive = false
+    nukeActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
@@ -1379,6 +1364,7 @@ killBtn.MouseButton1Click:Connect(function()
     if flyPoseConn then flyPoseConn:Disconnect() end
     if godModeConn then godModeConn:Disconnect() end
     if speedMaintainConn then speedMaintainConn:Disconnect() end
+    cleanupNukeEffects()
     removeSigmaEffectsFromChar(LocalPlayer.Character)
     removeRedEyes(LocalPlayer.Character)
     screenGui:Destroy()
@@ -1449,5 +1435,4 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     end
 
     pistolGiven = false
-    nukeGiven = false
 end)
