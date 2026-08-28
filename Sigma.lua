@@ -1746,12 +1746,10 @@ local originalColors = {}
 
 local function removeMonsterFromChar(char)
     if not char then return end
-    -- Удалить части монстра
     for _, p in ipairs(monsterParts) do
         if p and p.Parent then p:Destroy() end
     end
     monsterParts = {}
-    -- Восстановить цвета
     for part, color in pairs(originalColors) do
         if part and part.Parent then
             part.Color = color
@@ -1759,10 +1757,8 @@ local function removeMonsterFromChar(char)
         end
     end
     originalColors = {}
-    -- Удалить подсветку
     local hl = char:FindFirstChild("MonsterHighlight")
     if hl then hl:Destroy() end
-    -- Удалить свет
     local root = char:FindFirstChild("HumanoidRootPart")
     if root then
         local light = root:FindFirstChild("MonsterLight")
@@ -1770,7 +1766,6 @@ local function removeMonsterFromChar(char)
         local particles = root:FindFirstChild("MonsterParticles")
         if particles then particles:Destroy() end
     end
-    -- Восстановить WalkSpeed
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if humanoid then
         if speedActive then
@@ -1787,7 +1782,6 @@ local function applyMonsterToChar(char)
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not root or not head or not humanoid then return end
 
-    -- Сохранить и сменить цвета частей
     for _, part in ipairs(char:GetChildren()) do
         if part:IsA("BasePart") then
             if not originalColors[part] then
@@ -1798,7 +1792,6 @@ local function applyMonsterToChar(char)
         end
     end
 
-    -- Подсветка
     local hl = Instance.new("Highlight")
     hl.Name = "MonsterHighlight"
     hl.FillColor = Color3.fromRGB(100, 180, 20)
@@ -1807,7 +1800,6 @@ local function applyMonsterToChar(char)
     hl.OutlineTransparency = 0
     hl.Parent = char
 
-    -- Свет
     local light = Instance.new("PointLight")
     light.Name = "MonsterLight"
     light.Color = Color3.fromRGB(100, 200, 30)
@@ -1815,7 +1807,6 @@ local function applyMonsterToChar(char)
     light.Range = 18
     light.Parent = root
 
-    -- Частицы
     local particles = Instance.new("ParticleEmitter")
     particles.Name = "MonsterParticles"
     particles.Texture = "rbxassetid://243660364"
@@ -1834,12 +1825,10 @@ local function applyMonsterToChar(char)
     particles.SpreadAngle = Vector2.new(180, 180)
     particles.Parent = root
 
-    -- Ускорение
     if not speedActive then
         humanoid.WalkSpeed = 32
     end
 
-    -- Крылья (левое и правое)
     local wingL = Instance.new("Part")
     wingL.Name = "LocustWingL"
     wingL.Size = Vector3.new(0.1, 1.5, 3)
@@ -1874,7 +1863,6 @@ local function applyMonsterToChar(char)
     wingWeldR.Part1 = wingR
     wingWeldR.Parent = wingR
 
-    -- Усики
     local antennaL = Instance.new("Part")
     antennaL.Name = "LocustAntennaL"
     antennaL.Size = Vector3.new(0.05, 1.2, 0.05)
@@ -1907,7 +1895,6 @@ local function applyMonsterToChar(char)
     antWeldR.Part1 = antennaR
     antWeldR.Parent = antennaR
 
-    -- Звук жужжания
     if not monsterSound or not monsterSound.Parent then
         monsterSound = Instance.new("Sound")
         monsterSound.SoundId = "rbxassetid://9046865451"
@@ -1927,7 +1914,6 @@ monsterBtn.MouseButton1Click:Connect(function()
         if char then
             applyMonsterToChar(char)
         end
-        -- Анимация взмахов крыльев + пульсация света
         monsterConn = RunService.Heartbeat:Connect(function()
             if not monsterActive then return end
             local c = LocalPlayer.Character
@@ -1937,7 +1923,6 @@ monsterBtn.MouseButton1Click:Connect(function()
 
             local t = os.clock()
 
-            -- Анимация крыльев (поворот)
             local wingL = c:FindFirstChild("LocustWingL")
             local wingR = c:FindFirstChild("LocustWingR")
             local flap = math.sin(t * 15) * math.rad(25)
@@ -1948,14 +1933,12 @@ monsterBtn.MouseButton1Click:Connect(function()
                 wingR.CFrame = root.CFrame * CFrame.new(1.5, 0, 0) * CFrame.Angles(0, 0, math.rad(20) - flap)
             end
 
-            -- Пульсация света
             local light = root:FindFirstChild("MonsterLight")
             if light then
                 light.Brightness = 4 + math.sin(t * 6) * 2
                 light.Range = 15 + math.sin(t * 4) * 3
             end
 
-            -- Анимация позы монстра
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
                 local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
@@ -1990,6 +1973,142 @@ monsterBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ====== КНОПКА 12: УДАРНАЯ ВОЛНА ПРИ ПАДЕНИИ ======
+local shockwaveBtn = createMenuButton("Ударная волна", Color3.fromRGB(200, 100, 50))
+
+local shockwaveActive = false
+local shockwaveConn = nil
+local liftedBlocks = {}
+
+local function createLandingShockwave(char)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local pos = root.Position
+
+    local wave = Instance.new("Part")
+    wave.Name = "ShockwaveRing"
+    wave.Size = Vector3.new(2, 0.2, 2)
+    wave.Shape = Enum.PartType.Cylinder
+    wave.Color = Color3.fromRGB(255, 200, 100)
+    wave.Material = Enum.Material.Neon
+    wave.Transparency = 0.2
+    wave.CanCollide = false
+    wave.Anchored = true
+    wave.CFrame = CFrame.new(pos.X, pos.Y - 2, pos.Z) * CFrame.Angles(0, 0, math.rad(90))
+    wave.Parent = workspace
+
+    local flashLight = Instance.new("PointLight")
+    flashLight.Color = Color3.fromRGB(255, 180, 80)
+    flashLight.Brightness = 10
+    flashLight.Range = 25
+    flashLight.Parent = wave
+
+    local boom = Instance.new("Sound")
+    boom.SoundId = "rbxassetid://130835443"
+    boom.Volume = 3
+    boom.PlaybackSpeed = 0.6
+    boom.Parent = wave
+    boom:Play()
+
+    task.spawn(function()
+        for i = 1, 25 do
+            wave.Size = Vector3.new(2 + i * 3, 0.2, 2 + i * 3)
+            wave.Transparency = math.clamp(0.2 + (i / 25) * 0.8, 0, 1)
+            flashLight.Brightness = math.max(0, 10 - i * 0.5)
+            wave.CFrame = CFrame.new(pos.X, pos.Y - 2, pos.Z) * CFrame.Angles(0, 0, math.rad(90))
+            task.wait(0.03)
+        end
+        wave:Destroy()
+    end)
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {char}
+
+    local radius = 20
+    local scanHeight = 15
+
+    for xOffset = -radius, radius, 3 do
+        for zOffset = -radius, radius, 3 do
+            local rayOrigin = Vector3.new(pos.X + xOffset, pos.Y + 1, pos.Z + zOffset)
+            local rayResult = workspace:Raycast(rayOrigin, Vector3.new(0, -scanHeight, 0), raycastParams)
+            if rayResult and rayResult.Instance then
+                local part = rayResult.Instance
+                if not part.Anchored and part:IsA("BasePart") then
+                    local isPlayerPart = false
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        if plr.Character and part:IsDescendantOf(plr.Character) then
+                            isPlayerPart = true
+                            break
+                        end
+                    end
+                    if not isPlayerPart then
+                        local alreadyLifted = false
+                        for _, entry in ipairs(liftedBlocks) do
+                            if entry.part == part then
+                                alreadyLifted = true
+                                break
+                            end
+                        end
+                        if not alreadyLifted then
+                            local dist = (part.Position - pos).Magnitude
+                            local liftPower = math.max(50, 200 - dist * 5)
+                            part.AssemblyLinearVelocity = Vector3.new(
+                                math.random(-20, 20),
+                                liftPower,
+                                math.random(-20, 20)
+                            )
+                            part.AssemblyAngularVelocity = Vector3.new(
+                                math.random(-10, 10),
+                                math.random(-10, 10),
+                                math.random(-10, 10)
+                            )
+
+                            local entry = {part = part, timer = 1}
+                            table.insert(liftedBlocks, entry)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    task.spawn(function()
+        task.wait(1)
+        for i = #liftedBlocks, 1, -1 do
+            local entry = liftedBlocks[i]
+            if entry.part and entry.part.Parent then
+                entry.part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                entry.part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end
+            table.remove(liftedBlocks, i)
+        end
+    end)
+end
+
+shockwaveBtn.MouseButton1Click:Connect(function()
+    shockwaveActive = not shockwaveActive
+    if shockwaveActive then
+        shockwaveBtn.Text = "Ударная волна (ВКЛ)"
+        local char = LocalPlayer.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            shockwaveConn = humanoid.StateChanged:Connect(function(_, newState)
+                if not shockwaveActive then return end
+                if newState == Enum.HumanoidStateType.Landed then
+                    local c = LocalPlayer.Character
+                    if c then
+                        createLandingShockwave(c)
+                    end
+                end
+            end)
+        end
+    else
+        shockwaveBtn.Text = "Ударная волна"
+        if shockwaveConn then shockwaveConn:Disconnect() shockwaveConn = nil end
+    end
+end)
+
 -- ====== КНОПКА ЗАКРЫТИЯ ======
 local killBtn = Instance.new("TextButton")
 killBtn.Size = UDim2.new(0, 130, 0, 30)
@@ -2009,6 +2128,7 @@ killBtn.MouseButton1Click:Connect(function()
     espActive = false
     hitboxActive = false
     monsterActive = false
+    shockwaveActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
@@ -2020,6 +2140,7 @@ killBtn.MouseButton1Click:Connect(function()
     if hitboxConn then hitboxConn:Disconnect() end
     if monsterConn then monsterConn:Disconnect() end
     if monsterSound then monsterSound:Stop() monsterSound:Destroy() end
+    if shockwaveConn then shockwaveConn:Disconnect() end
     clearESP()
     clearHitboxes()
     cleanupNukeEffects()
@@ -2104,6 +2225,23 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     if monsterActive then
         task.wait(0.5)
         applyMonsterToChar(newChar)
+    end
+
+    if shockwaveActive then
+        local h = newChar:FindFirstChildOfClass("Humanoid")
+        if h then
+            task.wait(0.3)
+            if shockwaveConn then shockwaveConn:Disconnect() end
+            shockwaveConn = h.StateChanged:Connect(function(_, newState)
+                if not shockwaveActive then return end
+                if newState == Enum.HumanoidStateType.Landed then
+                    local c = LocalPlayer.Character
+                    if c then
+                        createLandingShockwave(c)
+                    end
+                end
+            end)
+        end
     end
 
     pistolGiven = false
