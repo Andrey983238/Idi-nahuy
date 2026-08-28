@@ -389,7 +389,6 @@ local function createPistol()
     tool.RequiresHandle = true
     tool.ToolTip = "ЛКМ — стрелять + флинг"
 
-    -- КОРПУС
     local handle = Instance.new("Part")
     handle.Name = "Handle"
     handle.Size = Vector3.new(0.3, 0.35, 1.2)
@@ -398,7 +397,6 @@ local function createPistol()
     handle.CanCollide = false
     handle.Parent = tool
 
-    -- СТВОЛ
     local barrel = Instance.new("Part")
     barrel.Name = "Barrel"
     barrel.Size = Vector3.new(0.15, 0.15, 1.5)
@@ -413,7 +411,6 @@ local function createPistol()
     weld1.Part1 = barrel
     weld1.Parent = handle
 
-    -- РУКОЯТКА
     local grip = Instance.new("Part")
     grip.Name = "Grip"
     grip.Size = Vector3.new(0.28, 0.7, 0.35)
@@ -428,7 +425,6 @@ local function createPistol()
     weld2.Part1 = grip
     weld2.Parent = handle
 
-    -- СПУСКОВАЯ СКОБА
     local guard = Instance.new("Part")
     guard.Name = "TriggerGuard"
     guard.Size = Vector3.new(0.1, 0.25, 0.3)
@@ -443,7 +439,6 @@ local function createPistol()
     weld3.Part1 = guard
     weld3.Parent = handle
 
-    -- ДУЛО
     local muzzle = Instance.new("Part")
     muzzle.Name = "Muzzle"
     muzzle.Size = Vector3.new(0.2, 0.2, 0.15)
@@ -458,12 +453,10 @@ local function createPistol()
     weld4.Part1 = muzzle
     weld4.Parent = barrel
 
-    -- ВЫСТРЕЛ
     tool.Activated:Connect(function()
         local localRoot = getRoot(LocalPlayer)
         if not localRoot then return end
 
-        -- Вспышка
         local flash = Instance.new("Part")
         flash.Size = Vector3.new(0.5, 0.5, 0.5)
         flash.Shape = Enum.PartType.Ball
@@ -485,7 +478,6 @@ local function createPistol()
         muzzleLight.Range = 10
         muzzleLight.Parent = flash
 
-        -- Дым из дула
         local muzzleSmoke = Instance.new("ParticleEmitter")
         muzzleSmoke.Texture = "rbxassetid://243660364"
         muzzleSmoke.Color = ColorSequence.new(Color3.fromRGB(200, 200, 200))
@@ -503,7 +495,6 @@ local function createPistol()
         muzzleSmoke.Parent = muzzle
         muzzleSmoke:Emit(10)
 
-        -- Звук
         local shootSound = Instance.new("Sound")
         shootSound.SoundId = "rbxassetid://130835443"
         shootSound.Volume = 1.5
@@ -511,7 +502,6 @@ local function createPistol()
         shootSound.Parent = handle
         shootSound:Play()
 
-        -- Затухание вспышки
         task.spawn(function()
             for i = 1, 6 do
                 if not flash or not flash.Parent then break end
@@ -523,10 +513,8 @@ local function createPistol()
             if flash then flash:Destroy() end
         end)
 
-        -- Отдача
         localRoot.AssemblyLinearVelocity = localRoot.CFrame.LookVector * -8
 
-        -- Raycast
         local mouse = LocalPlayer:GetMouse()
         local rayOrigin = muzzle.Position
         local rayDirection = (mouse.Hit.Position - rayOrigin).Unit * 500
@@ -547,7 +535,6 @@ local function createPistol()
             local hitPart = rayResult.Instance
             local hitPos = rayResult.Position
 
-            -- Дырка от пули
             local bulletHole = Instance.new("Part")
             bulletHole.Size = Vector3.new(0.15, 0.15, 0.05)
             bulletHole.Color = Color3.fromRGB(10, 10, 10)
@@ -574,7 +561,6 @@ local function createPistol()
             end
         end
 
-        -- Трассер
         local beam = Instance.new("Part")
         beam.Anchored = true
         beam.CanCollide = false
@@ -1255,7 +1241,6 @@ local function createNukeModel(spawnPos, targetPos)
 end
 
 local function createExplosionEffects(impactPos)
-    -- Ударная волна
     local shockwave = Instance.new("Part")
     shockwave.Name = "NukeShockwave"
     shockwave.Size = Vector3.new(10, 1, 10)
@@ -1276,7 +1261,6 @@ local function createExplosionEffects(impactPos)
         shockwave:Destroy()
     end)
 
-    -- Огненный шар
     local fireball = Instance.new("Part")
     fireball.Name = "NukeFireball"
     fireball.Size = Vector3.new(40, 40, 40)
@@ -1305,7 +1289,6 @@ local function createExplosionEffects(impactPos)
         fireball:Destroy()
     end)
 
-    -- Дым
     local smokeRoot = Instance.new("Part")
     smokeRoot.Name = "NukeSmokeRoot"
     smokeRoot.Size = Vector3.new(1, 1, 1)
@@ -1339,14 +1322,12 @@ local function createExplosionEffects(impactPos)
         if smokeRoot then smokeRoot:Destroy() end
     end)
 
-    -- Звук
     local boom = Instance.new("Sound")
     boom.SoundId = "rbxassetid://130835443"
     boom.Volume = 5
     boom.Parent = smokeRoot
     boom:Play()
 
-    -- УБИЙСТВО всех игроков в радиусе 150
     task.spawn(function()
         task.wait(0.1)
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -1365,7 +1346,6 @@ local function createExplosionEffects(impactPos)
         end
     end)
 
-    -- Осколки
     task.spawn(function()
         for i = 1, 20 do
             local debris = Instance.new("Part")
@@ -1556,6 +1536,141 @@ crashBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- ====== КНОПКА 9: ESP ИГРОКОВ ======
+local espBtn = createMenuButton("ESP игроков", Color3.fromRGB(0, 200, 100))
+
+local espActive = false
+local espConn = nil
+local espChars = {}
+
+local function clearESP()
+    for plr, hl in pairs(espChars) do
+        if hl then hl:Destroy() end
+    end
+    espChars = {}
+end
+
+local function applyESPToChar(plr, char)
+    if not char or not plr or plr == LocalPlayer then return end
+    if espChars[plr] and espChars[plr].Parent then return end
+    local hl = Instance.new("Highlight")
+    hl.Name = "EspHighlight"
+    hl.FillColor = Color3.fromRGB(255, 50, 50)
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.FillTransparency = 0.5
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = char
+    espChars[plr] = hl
+end
+
+espBtn.MouseButton1Click:Connect(function()
+    espActive = not espActive
+    if espActive then
+        espBtn.Text = "ESP игроков (ВКЛ)"
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                applyESPToChar(plr, plr.Character)
+            end
+        end
+        espConn = RunService.Heartbeat:Connect(function()
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    if not espChars[plr] or not espChars[plr].Parent then
+                        applyESPToChar(plr, plr.Character)
+                    end
+                end
+            end
+        end)
+    else
+        espBtn.Text = "ESP игроков"
+        if espConn then espConn:Disconnect() espConn = nil end
+        clearESP()
+    end
+end)
+
+-- ====== КНОПКА 10: ХИТБОКСЫ NPC ======
+local hitboxBtn = createMenuButton("Хитбоксы NPC", Color3.fromRGB(255, 200, 0))
+
+local hitboxActive = false
+local hitboxConn = nil
+local hitboxAdornments = {}
+
+local function isPlayerCharacter(model)
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character == model then return true end
+    end
+    return false
+end
+
+local function clearHitboxes()
+    for _, adornments in pairs(hitboxAdornments) do
+        for _, ad in ipairs(adornments) do
+            if ad then ad:Destroy() end
+        end
+    end
+    hitboxAdornments = {}
+end
+
+local function applyHitboxToModel(model)
+    if not model then return end
+    if isPlayerCharacter(model) then return end
+    if hitboxAdornments[model] then return end
+    local adornments = {}
+    for _, part in ipairs(model:GetChildren()) do
+        if part:IsA("BasePart") then
+            local adornment = Instance.new("BoxHandleAdornment")
+            adornment.Name = "HitboxAdornment"
+            adornment.Adornee = part
+            adornment.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+            adornment.Color3 = Color3.fromRGB(0, 255, 0)
+            adornment.Transparency = 0.5
+            adornment.AlwaysOnTop = true
+            adornment.ZIndex = 5
+            adornment.Parent = game:GetService("CoreGui")
+            table.insert(adornments, adornment)
+        end
+    end
+    if #adornments > 0 then
+        hitboxAdornments[model] = adornments
+    end
+end
+
+local function scanForNPCs()
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") then
+            local humanoid = obj:FindFirstChildOfClass("Humanoid")
+            if humanoid and not isPlayerCharacter(obj) then
+                applyHitboxToModel(obj)
+            end
+        end
+    end
+end
+
+hitboxBtn.MouseButton1Click:Connect(function()
+    hitboxActive = not hitboxActive
+    if hitboxActive then
+        hitboxBtn.Text = "Хитбоксы NPC (ВКЛ)"
+        scanForNPCs()
+        hitboxConn = RunService.Heartbeat:Connect(function()
+            if not hitboxActive then return end
+            for model, adornments in pairs(hitboxAdornments) do
+                if not model or not model.Parent then
+                    for _, ad in ipairs(adornments) do
+                        if ad then ad:Destroy() end
+                    end
+                    hitboxAdornments[model] = nil
+                end
+            end
+            scanForNPCs()
+        end)
+    else
+        hitboxBtn.Text = "Хитбоксы NPC"
+        if hitboxConn then hitboxConn:Disconnect() hitboxConn = nil end
+        clearHitboxes()
+    end
+end)
+
 -- ====== КНОПКА ЗАКРЫТИЯ ======
 local killBtn = Instance.new("TextButton")
 killBtn.Size = UDim2.new(0, 130, 0, 30)
@@ -1572,6 +1687,8 @@ killBtn.MouseButton1Click:Connect(function()
     speedActive = false
     nukeCooldown = false
     nukeAiming = false
+    espActive = false
+    hitboxActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
@@ -1579,6 +1696,10 @@ killBtn.MouseButton1Click:Connect(function()
     if flyPoseConn then flyPoseConn:Disconnect() end
     if godModeConn then godModeConn:Disconnect() end
     if speedMaintainConn then speedMaintainConn:Disconnect() end
+    if espConn then espConn:Disconnect() end
+    if hitboxConn then hitboxConn:Disconnect() end
+    clearESP()
+    clearHitboxes()
     cleanupNukeEffects()
     removeSigmaEffectsFromChar(LocalPlayer.Character)
     removeRedEyes(LocalPlayer.Character)
@@ -1645,6 +1766,14 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
                 goldHighlight.OutlineTransparency = 0
                 goldHighlight.Name = "GodModeHighlight"
                 goldHighlight.Parent = newChar
+            end
+        end
+    end
+
+    if espActive then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                applyESPToChar(plr, plr.Character)
             end
         end
     end
