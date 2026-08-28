@@ -315,22 +315,58 @@ end
 local tpBtn = createMenuButton("ТП к игроку", Color3.fromRGB(40, 100, 160))
 
 local tpListContainer = Instance.new("ScrollingFrame")
-tpListContainer.Size = UDim2.new(1, -20, 0, 150)
+tpListContainer.Size = UDim2.new(1, -20, 0, 200)
 tpListContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 tpListContainer.BorderSizePixel = 0
 tpListContainer.ScrollBarThickness = 4
 tpListContainer.Visible = false
 tpListContainer.Parent = contentFrame
 
+local searchBox = Instance.new("TextBox")
+searchBox.Size = UDim2.new(1, -10, 0, 30)
+searchBox.Position = UDim2.new(0, 5, 0, 5)
+searchBox.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+searchBox.Font = Enum.Font.SourceSans
+searchBox.TextSize = 14
+searchBox.Text = ""
+searchBox.PlaceholderText = "Поиск ника..."
+searchBox.ClearTextOnFocus = false
+searchBox.Parent = tpListContainer
+
+local searchHint = Instance.new("TextLabel")
+searchHint.Size = UDim2.new(0, 80, 0, 30)
+searchHint.Position = UDim2.new(0, 10, 0, 5)
+searchHint.BackgroundTransparency = 1
+searchHint.Text = "Поиск ника..."
+searchHint.TextColor3 = Color3.fromRGB(150, 150, 160)
+searchHint.Font = Enum.Font.SourceSans
+searchHint.TextSize = 14
+searchHint.TextXAlignment = Enum.TextXAlignment.Left
+searchHint.Parent = tpListContainer
+searchHint.Visible = true
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    searchHint.Visible = searchBox.Text == ""
+end)
+
+local tpPlayerList = Instance.new("ScrollingFrame")
+tpPlayerList.Size = UDim2.new(1, 0, 0, 160)
+tpPlayerList.Position = UDim2.new(0, 0, 0, 40)
+tpPlayerList.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+tpPlayerList.BorderSizePixel = 0
+tpPlayerList.ScrollBarThickness = 4
+tpPlayerList.Parent = tpListContainer
+
 local tpListLayout = Instance.new("UIListLayout")
 tpListLayout.Padding = UDim.new(0, 3)
 tpListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-tpListLayout.Parent = tpListContainer
+tpListLayout.Parent = tpPlayerList
 
 local tpListPadding = Instance.new("UIPadding")
 tpListPadding.PaddingTop = UDim.new(0, 3)
 tpListPadding.PaddingBottom = UDim.new(0, 3)
-tpListPadding.Parent = tpListContainer
+tpListPadding.Parent = tpPlayerList
 
 local tpListVisible = false
 local tpListButtons = {}
@@ -341,34 +377,62 @@ local function refreshTpList()
     end
     tpListButtons = {}
 
+    local query = searchBox.Text:lower()
+    local matchCount = 0
+
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -6, 0, 28)
-            btn.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Font = Enum.Font.SourceSans
-            btn.TextSize = 14
-            btn.Text = "  " .. plr.Name
-            btn.Parent = tpListContainer
+            local nameLower = plr.Name:lower()
+            local displayNameLower = plr.DisplayName and plr.DisplayName:lower() or ""
 
-            btn.MouseButton1Click:Connect(function()
-                local targetRoot = getRoot(plr)
-                local localRoot = getRoot(LocalPlayer)
-                if targetRoot and localRoot then
-                    localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
-                end
-            end)
+            if query == "" or nameLower:find(query, 1, true) or displayNameLower:find(query, 1, true) then
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1, -6, 0, 28)
+                btn.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
+                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                btn.Font = Enum.Font.SourceSans
+                btn.TextSize = 14
+                btn.Text = "  " .. plr.Name
+                btn.Parent = tpPlayerList
 
-            table.insert(tpListButtons, btn)
+                btn.MouseButton1Click:Connect(function()
+                    local targetRoot = getRoot(plr)
+                    local localRoot = getRoot(LocalPlayer)
+                    if targetRoot and localRoot then
+                        localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 4)
+                    end
+                end)
+
+                table.insert(tpListButtons, btn)
+                matchCount += 1
+            end
         end
     end
-    tpListContainer.CanvasSize = UDim2.new(0, 0, 0, #tpListButtons * 31 + 6)
+
+    if matchCount == 0 and query ~= "" then
+        local noResult = Instance.new("TextLabel")
+        noResult.Size = UDim2.new(1, -6, 0, 28)
+        noResult.BackgroundTransparency = 1
+        noResult.Text = "  Ничего не найдено"
+        noResult.TextColor3 = Color3.fromRGB(200, 80, 80)
+        noResult.Font = Enum.Font.SourceSans
+        noResult.TextSize = 14
+        noResult.TextXAlignment = Enum.TextXAlignment.Left
+        noResult.Parent = tpPlayerList
+        table.insert(tpListButtons, noResult)
+        matchCount = 1
+    end
+
+    tpPlayerList.CanvasSize = UDim2.new(0, 0, 0, matchCount * 31 + 6)
 end
 
 tpBtn.MouseButton1Click:Connect(function()
     tpListVisible = not tpListVisible
     tpListContainer.Visible = tpListVisible
+    if tpListVisible then refreshTpList() end
+end)
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
     if tpListVisible then refreshTpList() end
 end)
 
@@ -379,7 +443,7 @@ Players.PlayerRemoving:Connect(function()
     if tpListVisible then refreshTpList() end
 end)
 
--- ====== КНОПКА 2: ПИСТОЛЕТ (улучшенный) ======
+-- ====== КНОПКА 2: ПИСТОЛЕТ ======
 local pistolBtn = createMenuButton("Выдать пистолет", Color3.fromRGB(60, 120, 50))
 local pistolGiven = false
 
@@ -1167,7 +1231,7 @@ luckyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====== КНОПКА 7: ПУЛЬТ ЯДЕРКИ С ПРИЦЕЛОМ ======
+-- ====== КНОПКА 7: ЯДЕРКА ======
 local function cleanupNukeEffects()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and (obj.Name == "NukeBomb" or obj.Name == "NukeShockwave" or obj.Name == "NukeMarker" or obj.Name == "NukeFireball" or obj.Name == "NoseCone" or obj.Name == "NukeSmokeRoot" or obj.Name == "NukeBeam" or obj.Name == "NukeDebris") then
@@ -1671,6 +1735,261 @@ hitboxBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ====== КНОПКА 11: МОНСТР САРАНЧА ======
+local monsterBtn = createMenuButton("МОНСТР: САРАНЧА", Color3.fromRGB(100, 150, 30))
+
+local monsterActive = false
+local monsterConn = nil
+local monsterSound = nil
+local monsterParts = {}
+local originalColors = {}
+
+local function removeMonsterFromChar(char)
+    if not char then return end
+    -- Удалить части монстра
+    for _, p in ipairs(monsterParts) do
+        if p and p.Parent then p:Destroy() end
+    end
+    monsterParts = {}
+    -- Восстановить цвета
+    for part, color in pairs(originalColors) do
+        if part and part.Parent then
+            part.Color = color
+            part.Material = Enum.Material.Plastic
+        end
+    end
+    originalColors = {}
+    -- Удалить подсветку
+    local hl = char:FindFirstChild("MonsterHighlight")
+    if hl then hl:Destroy() end
+    -- Удалить свет
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        local light = root:FindFirstChild("MonsterLight")
+        if light then light:Destroy() end
+        local particles = root:FindFirstChild("MonsterParticles")
+        if particles then particles:Destroy() end
+    end
+    -- Восстановить WalkSpeed
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if speedActive then
+            humanoid.WalkSpeed = walkSpeed
+        else
+            humanoid.WalkSpeed = 16
+        end
+    end
+end
+
+local function applyMonsterToChar(char)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local head = char:FindFirstChild("Head")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not root or not head or not humanoid then return end
+
+    -- Сохранить и сменить цвета частей
+    for _, part in ipairs(char:GetChildren()) do
+        if part:IsA("BasePart") then
+            if not originalColors[part] then
+                originalColors[part] = part.Color
+            end
+            part.Color = Color3.fromRGB(80, 120, 20)
+            part.Material = Enum.Material.Grass
+        end
+    end
+
+    -- Подсветка
+    local hl = Instance.new("Highlight")
+    hl.Name = "MonsterHighlight"
+    hl.FillColor = Color3.fromRGB(100, 180, 20)
+    hl.OutlineColor = Color3.fromRGB(200, 255, 50)
+    hl.FillTransparency = 0.6
+    hl.OutlineTransparency = 0
+    hl.Parent = char
+
+    -- Свет
+    local light = Instance.new("PointLight")
+    light.Name = "MonsterLight"
+    light.Color = Color3.fromRGB(100, 200, 30)
+    light.Brightness = 6
+    light.Range = 18
+    light.Parent = root
+
+    -- Частицы
+    local particles = Instance.new("ParticleEmitter")
+    particles.Name = "MonsterParticles"
+    particles.Texture = "rbxassetid://243660364"
+    particles.Color = ColorSequence.new(Color3.fromRGB(120, 200, 30))
+    particles.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    particles.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.3),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    particles.Lifetime = NumberRange.new(0.5, 1)
+    particles.Rate = 30
+    particles.Speed = NumberRange.new(1, 3)
+    particles.SpreadAngle = Vector2.new(180, 180)
+    particles.Parent = root
+
+    -- Ускорение
+    if not speedActive then
+        humanoid.WalkSpeed = 32
+    end
+
+    -- Крылья (левое и правое)
+    local wingL = Instance.new("Part")
+    wingL.Name = "LocustWingL"
+    wingL.Size = Vector3.new(0.1, 1.5, 3)
+    wingL.Color = Color3.fromRGB(60, 100, 15)
+    wingL.Material = Enum.Material.SmoothPlastic
+    wingL.Transparency = 0.3
+    wingL.CanCollide = false
+    wingL.Anchored = false
+    wingL.CFrame = root.CFrame * CFrame.new(-1.5, 0, 0) * CFrame.Angles(0, 0, math.rad(-20))
+    wingL.Parent = char
+    table.insert(monsterParts, wingL)
+
+    local wingWeldL = Instance.new("WeldConstraint")
+    wingWeldL.Part0 = root
+    wingWeldL.Part1 = wingL
+    wingWeldL.Parent = wingL
+
+    local wingR = Instance.new("Part")
+    wingR.Name = "LocustWingR"
+    wingR.Size = Vector3.new(0.1, 1.5, 3)
+    wingR.Color = Color3.fromRGB(60, 100, 15)
+    wingR.Material = Enum.Material.SmoothPlastic
+    wingR.Transparency = 0.3
+    wingR.CanCollide = false
+    wingR.Anchored = false
+    wingR.CFrame = root.CFrame * CFrame.new(1.5, 0, 0) * CFrame.Angles(0, 0, math.rad(20))
+    wingR.Parent = char
+    table.insert(monsterParts, wingR)
+
+    local wingWeldR = Instance.new("WeldConstraint")
+    wingWeldR.Part0 = root
+    wingWeldR.Part1 = wingR
+    wingWeldR.Parent = wingR
+
+    -- Усики
+    local antennaL = Instance.new("Part")
+    antennaL.Name = "LocustAntennaL"
+    antennaL.Size = Vector3.new(0.05, 1.2, 0.05)
+    antennaL.Color = Color3.fromRGB(50, 80, 10)
+    antennaL.Material = Enum.Material.SmoothPlastic
+    antennaL.CanCollide = false
+    antennaL.Anchored = false
+    antennaL.CFrame = head.CFrame * CFrame.new(-0.2, 0.6, 0) * CFrame.Angles(math.rad(-15), 0, math.rad(-10))
+    antennaL.Parent = char
+    table.insert(monsterParts, antennaL)
+
+    local antWeldL = Instance.new("WeldConstraint")
+    antWeldL.Part0 = head
+    antWeldL.Part1 = antennaL
+    antWeldL.Parent = antennaL
+
+    local antennaR = Instance.new("Part")
+    antennaR.Name = "LocustAntennaR"
+    antennaR.Size = Vector3.new(0.05, 1.2, 0.05)
+    antennaR.Color = Color3.fromRGB(50, 80, 10)
+    antennaR.Material = Enum.Material.SmoothPlastic
+    antennaR.CanCollide = false
+    antennaR.Anchored = false
+    antennaR.CFrame = head.CFrame * CFrame.new(0.2, 0.6, 0) * CFrame.Angles(math.rad(-15), 0, math.rad(10))
+    antennaR.Parent = char
+    table.insert(monsterParts, antennaR)
+
+    local antWeldR = Instance.new("WeldConstraint")
+    antWeldR.Part0 = head
+    antWeldR.Part1 = antennaR
+    antWeldR.Parent = antennaR
+
+    -- Звук жужжания
+    if not monsterSound or not monsterSound.Parent then
+        monsterSound = Instance.new("Sound")
+        monsterSound.SoundId = "rbxassetid://9046865451"
+        monsterSound.Volume = 1.5
+        monsterSound.PlaybackSpeed = 1.5
+        monsterSound.Looped = true
+        monsterSound.Parent = root
+        monsterSound:Play()
+    end
+end
+
+monsterBtn.MouseButton1Click:Connect(function()
+    monsterActive = not monsterActive
+    if monsterActive then
+        monsterBtn.Text = "МОНСТР: САРАНЧА (ВКЛ)"
+        local char = LocalPlayer.Character
+        if char then
+            applyMonsterToChar(char)
+        end
+        -- Анимация взмахов крыльев + пульсация света
+        monsterConn = RunService.Heartbeat:Connect(function()
+            if not monsterActive then return end
+            local c = LocalPlayer.Character
+            if not c then return end
+            local root = c:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
+            local t = os.clock()
+
+            -- Анимация крыльев (поворот)
+            local wingL = c:FindFirstChild("LocustWingL")
+            local wingR = c:FindFirstChild("LocustWingR")
+            local flap = math.sin(t * 15) * math.rad(25)
+            if wingL and wingL.Parent then
+                wingL.CFrame = root.CFrame * CFrame.new(-1.5, 0, 0) * CFrame.Angles(0, 0, math.rad(-20) + flap)
+            end
+            if wingR and wingR.Parent then
+                wingR.CFrame = root.CFrame * CFrame.new(1.5, 0, 0) * CFrame.Angles(0, 0, math.rad(20) - flap)
+            end
+
+            -- Пульсация света
+            local light = root:FindFirstChild("MonsterLight")
+            if light then
+                light.Brightness = 4 + math.sin(t * 6) * 2
+                light.Range = 15 + math.sin(t * 4) * 3
+            end
+
+            -- Анимация позы монстра
+            local upperTorso = c:FindFirstChild("UpperTorso")
+            if upperTorso then
+                local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
+                local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
+                local head = c:FindFirstChild("Head")
+                local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
+
+                local hunch = math.sin(t * 4) * math.rad(5)
+                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-45) + hunch, math.rad(30), math.rad(-40)) end
+                if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-45) - hunch, math.rad(-30), math.rad(40)) end
+                if neck then neck.Transform = CFrame.Angles(math.rad(-35), 0, 0) end
+            else
+                local torso = c:FindFirstChild("Torso")
+                if torso then
+                    local rightShoulder = torso:FindFirstChild("Right Shoulder")
+                    local leftShoulder = torso:FindFirstChild("Left Shoulder")
+                    local head = c:FindFirstChild("Head")
+                    local neck = head and head:FindFirstChild("Neck")
+
+                    local hunch = math.sin(t * 4) * math.rad(5)
+                    if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-45) + hunch, math.rad(30), math.rad(-40)) end
+                    if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-45) - hunch, math.rad(-30), math.rad(40)) end
+                    if neck then neck.Transform = CFrame.Angles(math.rad(-35), 0, 0) end
+                end
+            end
+        end)
+    else
+        monsterBtn.Text = "МОНСТР: САРАНЧА"
+        if monsterConn then monsterConn:Disconnect() monsterConn = nil end
+        if monsterSound then monsterSound:Stop() monsterSound:Destroy() monsterSound = nil end
+        removeMonsterFromChar(LocalPlayer.Character)
+    end
+end)
+
 -- ====== КНОПКА ЗАКРЫТИЯ ======
 local killBtn = Instance.new("TextButton")
 killBtn.Size = UDim2.new(0, 130, 0, 30)
@@ -1689,6 +2008,7 @@ killBtn.MouseButton1Click:Connect(function()
     nukeAiming = false
     espActive = false
     hitboxActive = false
+    monsterActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
@@ -1698,11 +2018,14 @@ killBtn.MouseButton1Click:Connect(function()
     if speedMaintainConn then speedMaintainConn:Disconnect() end
     if espConn then espConn:Disconnect() end
     if hitboxConn then hitboxConn:Disconnect() end
+    if monsterConn then monsterConn:Disconnect() end
+    if monsterSound then monsterSound:Stop() monsterSound:Destroy() end
     clearESP()
     clearHitboxes()
     cleanupNukeEffects()
     removeSigmaEffectsFromChar(LocalPlayer.Character)
     removeRedEyes(LocalPlayer.Character)
+    removeMonsterFromChar(LocalPlayer.Character)
     screenGui:Destroy()
 end)
 
@@ -1776,6 +2099,11 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
                 applyESPToChar(plr, plr.Character)
             end
         end
+    end
+
+    if monsterActive then
+        task.wait(0.5)
+        applyMonsterToChar(newChar)
     end
 
     pistolGiven = false
