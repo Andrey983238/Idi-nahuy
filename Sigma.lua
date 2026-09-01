@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Forward-declare
 local flying = false
@@ -137,9 +138,9 @@ local function KilasikFling(TargetPlayer)
                     task.wait()
                     FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
                     task.wait()
-                    FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+                    FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
                     task.wait()
-                    FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection, CFrame.Angles(math.rad(Angle), 0, 0))
+                    FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
                     task.wait()
                 else
                     FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
@@ -2109,6 +2110,59 @@ shockwaveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ====== КНОПКА 13: НОУКЛИП ======
+local noclipBtn = createMenuButton("Ноуклип", Color3.fromRGB(150, 0, 150))
+
+local noclipActive = false
+local noclipConn = nil
+
+local function setNoclip(enabled)
+    noclipActive = enabled
+    if enabled then
+        noclipBtn.Text = "Ноуклип (ВКЛ)"
+
+        -- Пытаемся использовать RemoteEvent (работает в Studio / на своём сервере)
+        local toggleEvent = ReplicatedStorage:FindFirstChild("ToggleNoClip")
+        if toggleEvent then
+            toggleEvent:FireServer(true)
+        end
+
+        -- Локальный ноуклип (отключает CanCollide у частей персонажа)
+        noclipConn = RunService.Stepped:Connect(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end)
+    else
+        noclipBtn.Text = "Ноуклип"
+        if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+
+        -- Возвращаем коллизию
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+
+        -- Сигнал серверу
+        local toggleEvent = ReplicatedStorage:FindFirstChild("ToggleNoClip")
+        if toggleEvent then
+            toggleEvent:FireServer(false)
+        end
+    end
+end
+
+noclipBtn.MouseButton1Click:Connect(function()
+    setNoclip(not noclipActive)
+end)
+
 -- ====== КНОПКА ЗАКРЫТИЯ ======
 local killBtn = Instance.new("TextButton")
 killBtn.Size = UDim2.new(0, 130, 0, 30)
@@ -2129,6 +2183,7 @@ killBtn.MouseButton1Click:Connect(function()
     hitboxActive = false
     monsterActive = false
     shockwaveActive = false
+    noclipActive = false
     if sigmaSound then sigmaSound:Stop() sigmaSound:Destroy() end
     if sigmaAuraConn then sigmaAuraConn:Disconnect() end
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
@@ -2141,6 +2196,7 @@ killBtn.MouseButton1Click:Connect(function()
     if monsterConn then monsterConn:Disconnect() end
     if monsterSound then monsterSound:Stop() monsterSound:Destroy() end
     if shockwaveConn then shockwaveConn:Disconnect() end
+    if noclipConn then noclipConn:Disconnect() end
     clearESP()
     clearHitboxes()
     cleanupNukeEffects()
@@ -2242,6 +2298,21 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
                 end
             end)
         end
+    end
+
+    -- Восстановление ноуклипа после респавна
+    if noclipActive then
+        task.wait(0.3)
+        if noclipConn then noclipConn:Disconnect() end
+        noclipConn = RunService.Stepped:Connect(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end)
     end
 
     pistolGiven = false
