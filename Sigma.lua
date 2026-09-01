@@ -853,7 +853,7 @@ local function removeRedEyes(char)
     if eR then eR:Destroy() end
 end
 
--- ====== КНОПКА 4: ПОЛЁТ ======
+-- ====== КНОПКА 4: ПОЛЁТ (СУПЕРМЕН) ======
 local flyBtn = createMenuButton("Полёт [50]", Color3.fromRGB(0, 150, 200))
 
 local flySpeedPanel = Instance.new("Frame")
@@ -945,7 +945,12 @@ flyBtn.MouseButton1Click:Connect(function()
                 elseif key.KeyCode == Enum.KeyCode.LeftShift then moveVec -= Vector3.new(0, 1, 0) end
             end
 
-            if moveVec.Magnitude > 0 then moveVec = moveVec.Unit * flySpeed end
+            if moveVec.Magnitude > 0 then
+                moveVec = moveVec.Unit * flySpeed
+            else
+                moveVec = Vector3.new(0, 0, 0)
+            end
+
             root2.AssemblyLinearVelocity = moveVec
         end)
 
@@ -955,8 +960,8 @@ flyBtn.MouseButton1Click:Connect(function()
             if not c then return end
 
             local t = os.clock()
-            local sway = math.sin(t * 6) * 0.03
-            local armSway = math.sin(t * 6) * math.rad(3)
+            local sway = math.sin(t * 4) * 0.02
+            local armSway = math.sin(t * 4) * math.rad(2)
 
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
@@ -965,22 +970,22 @@ flyBtn.MouseButton1Click:Connect(function()
                 local waist = c:FindFirstChild("LowerTorso") and c.LowerTorso:FindFirstChild("Waist")
                 local head = c:FindFirstChild("Head")
                 local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
-                local rightHip = c:FindFirstChild("RightLeg") and c:FindFirstChild("RightHip")
-                local leftHip = c:FindFirstChild("LeftLeg") and c:FindFirstChild("LeftHip")
-                local rightKnee = c:FindFirstChild("RightLeg") and c.RightLeg:FindFirstChild("RightKnee")
-                local leftKnee = c:FindFirstChild("LeftLeg") and c.LeftLeg:FindFirstChild("LeftKnee")
+                local rightHip = c:FindFirstChild("RightUpperLeg") and c.RightUpperLeg:FindFirstChild("RightHip")
+                local leftHip = c:FindFirstChild("LeftUpperLeg") and c.LeftUpperLeg:FindFirstChild("LeftHip")
+                local rightKnee = c:FindFirstChild("RightLowerLeg") and c.RightLowerLeg:FindFirstChild("RightKnee")
+                local leftKnee = c:FindFirstChild("LeftLowerLeg") and c.LeftLowerLeg:FindFirstChild("LeftKnee")
                 local rightAnkle = c:FindFirstChild("RightFoot") and c.RightFoot:FindFirstChild("RightAnkle")
                 local leftAnkle = c:FindFirstChild("LeftFoot") and c.LeftFoot:FindFirstChild("LeftAnkle")
 
-                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5)) end
-                if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5)) end
-                if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3)) end
-                if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3)) end
-                if rightKnee then rightKnee.Transform = CFrame.Angles(0, 0, 0) end
-                if leftKnee then leftKnee.Transform = CFrame.Angles(0, 0, 0) end
-                if rightAnkle then rightAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0) end
-                if leftAnkle then leftAnkle.Transform = CFrame.Angles(math.rad(-10), 0, 0) end
-                if waist then waist.Transform = CFrame.Angles(math.rad(80), 0, 0) end
+                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90) + armSway, math.rad(0), math.rad(0)) end
+                if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-30) - armSway, math.rad(-45), math.rad(-30)) end
+                if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-10) + sway * 5, 0, math.rad(-8)) end
+                if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-10) - sway * 5, 0, math.rad(8)) end
+                if rightKnee then rightKnee.Transform = CFrame.Angles(math.rad(5), 0, 0) end
+                if leftKnee then leftKnee.Transform = CFrame.Angles(math.rad(5), 0, 0) end
+                if rightAnkle then rightAnkle.Transform = CFrame.Angles(math.rad(-5), 0, 0) end
+                if leftAnkle then leftAnkle.Transform = CFrame.Angles(math.rad(-5), 0, 0) end
+                if waist then waist.Transform = CFrame.Angles(math.rad(80), 0, sway) end
                 if neck then neck.Transform = CFrame.Angles(math.rad(-80), 0, 0) end
             else
                 local torso = c:FindFirstChild("Torso")
@@ -993,12 +998,12 @@ flyBtn.MouseButton1Click:Connect(function()
                     local neck = head and head:FindFirstChild("Neck")
                     local rootJoint = c:FindFirstChild("HumanoidRootPart") and c.HumanoidRootPart:FindFirstChild("RootJoint")
 
-                    if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(15) + armSway, math.rad(-5)) end
-                    if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-90), math.rad(-15) - armSway, math.rad(5)) end
-                    if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-5 + sway * 10), 0, math.rad(-3)) end
-                    if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-5 - sway * 10), 0, math.rad(3)) end
+                    if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90) + armSway, 0, 0) end
+                    if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-30) - armSway, math.rad(-45), math.rad(-30)) end
+                    if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-10) + sway * 5, 0, math.rad(-8)) end
+                    if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-10) - sway * 5, 0, math.rad(8)) end
                     if neck then neck.Transform = CFrame.Angles(math.rad(-80), 0, 0) end
-                    if rootJoint then rootJoint.Transform = CFrame.Angles(math.rad(80), 0, 0) end
+                    if rootJoint then rootJoint.Transform = CFrame.Angles(math.rad(80), 0, sway) end
                 end
             end
         end)
@@ -2121,13 +2126,11 @@ local function setNoclip(enabled)
     if enabled then
         noclipBtn.Text = "Ноуклип (ВКЛ)"
 
-        -- Пытаемся использовать RemoteEvent (работает в Studio / на своём сервере)
         local toggleEvent = ReplicatedStorage:FindFirstChild("ToggleNoClip")
         if toggleEvent then
             toggleEvent:FireServer(true)
         end
 
-        -- Локальный ноуклип (отключает CanCollide у частей персонажа)
         noclipConn = RunService.Stepped:Connect(function()
             local char = LocalPlayer.Character
             if not char then return end
@@ -2141,7 +2144,6 @@ local function setNoclip(enabled)
         noclipBtn.Text = "Ноуклип"
         if noclipConn then noclipConn:Disconnect() noclipConn = nil end
 
-        -- Возвращаем коллизию
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -2151,7 +2153,6 @@ local function setNoclip(enabled)
             end
         end
 
-        -- Сигнал серверу
         local toggleEvent = ReplicatedStorage:FindFirstChild("ToggleNoClip")
         if toggleEvent then
             toggleEvent:FireServer(false)
@@ -2300,7 +2301,6 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         end
     end
 
-    -- Восстановление ноуклипа после респавна
     if noclipActive then
         task.wait(0.3)
         if noclipConn then noclipConn:Disconnect() end
