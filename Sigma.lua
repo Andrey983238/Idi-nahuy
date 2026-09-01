@@ -893,6 +893,9 @@ flySpeedUp.Font = Enum.Font.SourceSansBold
 flySpeedUp.TextSize = 20
 flySpeedUp.Parent = flySpeedPanel
 
+local flyBodyVel = nil
+local flyBodyGyro = nil
+
 local function updateFlyLabel()
     flyBtn.Text = "Полёт [" .. flySpeed .. "]"
     flySpeedLabel.Text = "Скорость: " .. flySpeed
@@ -925,6 +928,19 @@ flyBtn.MouseButton1Click:Connect(function()
 
         local camera = workspace.CurrentCamera
 
+        -- BodyVelocity активно удерживает скорость = противодействует гравитации
+        flyBodyVel = Instance.new("BodyVelocity")
+        flyBodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVel.Parent = root
+
+        -- BodyGyro удерживает тело горизонтально (как Супермен)
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyGyro.D = 100
+        flyBodyGyro.CFrame = root.CFrame
+        flyBodyGyro.Parent = root
+
         flyConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local root2 = getRoot(LocalPlayer)
@@ -948,12 +964,30 @@ flyBtn.MouseButton1Click:Connect(function()
             if moveVec.Magnitude > 0 then
                 moveVec = moveVec.Unit * flySpeed
             else
+                -- Зависание: BodyVelocity держит (0,0,0) — гравитация не тянет вниз
                 moveVec = Vector3.new(0, 0, 0)
             end
 
-            root2.AssemblyLinearVelocity = moveVec
+            if flyBodyVel and flyBodyVel.Parent then
+                flyBodyVel.Velocity = moveVec
+            end
+
+            -- Тело наклонено горизонтально по направлению движения/камеры
+            if flyBodyGyro and flyBodyGyro.Parent then
+                if moveVec.Magnitude > 0 then
+                    flyBodyGyro.CFrame = CFrame.new(Vector3.new(0, 0, 0), moveVec) * CFrame.Angles(math.rad(90), 0, 0)
+                else
+                    -- Когда стоим на месте — наклон по камере
+                    local lookDir = camCFrame.LookVector
+                    lookDir = Vector3.new(lookDir.X, 0, lookDir.Z)
+                    if lookDir.Magnitude > 0 then
+                        flyBodyGyro.CFrame = CFrame.new(Vector3.new(0, 0, 0), lookDir) * CFrame.Angles(math.rad(90), 0, 0)
+                    end
+                end
+            end
         end)
 
+        -- Поза Супермена через Motor6D Transform
         flyPoseConn = RunService.RenderStepped:Connect(function()
             if not flying then return end
             local c = LocalPlayer.Character
@@ -965,29 +999,42 @@ flyBtn.MouseButton1Click:Connect(function()
 
             local upperTorso = c:FindFirstChild("UpperTorso")
             if upperTorso then
+                -- R15: ищем суставы в правильных местах
                 local rightShoulder = upperTorso:FindFirstChild("RightShoulder")
                 local leftShoulder = upperTorso:FindFirstChild("LeftShoulder")
-                local waist = c:FindFirstChild("LowerTorso") and c.LowerTorso:FindFirstChild("Waist")
-                local head = c:FindFirstChild("Head")
-                local neck = head and (head:FindFirstChild("Neck") or upperTorso:FindFirstChild("Neck"))
-                local rightHip = c:FindFirstChild("RightUpperLeg") and c.RightUpperLeg:FindFirstChild("RightHip")
-                local leftHip = c:FindFirstChild("LeftUpperLeg") and c.LeftUpperLeg:FindFirstChild("LeftHip")
-                local rightKnee = c:FindFirstChild("RightLowerLeg") and c.RightLowerLeg:FindFirstChild("RightKnee")
-                local leftKnee = c:FindFirstChild("LeftLowerLeg") and c.LeftLowerLeg:FindFirstChild("LeftKnee")
-                local rightAnkle = c:FindFirstChild("RightFoot") and c.RightFoot:FindFirstChild("RightAnkle")
-                local leftAnkle = c:FindFirstChild("LeftFoot") and c.LeftFoot:FindFirstChild("LeftAnkle")
+                local lowerTorso = c:FindFirstChild("LowerTorso")
+                local waist = lowerTorso and lowerTorso:FindFirstChild("Waist")
+                local neck = upperTorso:FindFirstChild("Neck")
+                -- RightHip и LeftHip находятся в LowerTorso, а не в RightUpperLeg!
+                local rightHip = lowerTorso and lowerTorso:FindFirstChild("RightHip")
+                local leftHip = lowerTorso and lowerTorso:FindFirstChild("LeftHip")
+                -- RightKnee и LeftKnee в RightUpperLeg / LeftUpperLeg
+                local rightUpperLeg = c:FindFirstChild("RightUpperLeg")
+                local leftUpperLeg = c:FindFirstChild("LeftUpperLeg")
+                local rightKnee = rightUpperLeg and rightUpperLeg:FindFirstChild("RightKnee")
+                local leftKnee = leftUpperLeg and leftUpperLeg:FindFirstChild("LeftKnee")
+                local rightLowerLeg = c:FindFirstChild("RightLowerLeg")
+                local leftLowerLeg = c:FindFirstChild("LeftLowerLeg")
+                local rightAnkle = rightLowerLeg and rightLowerLeg:FindFirstChild("RightAnkle")
+                local leftAnkle = leftLowerLeg and leftLowerLeg:FindFirstChild("LeftAnkle")
 
-                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90) + armSway, math.rad(0), math.rad(0)) end
+                -- Правая рука вытянута вперёд (кулак Супермена)
+                if rightShoulder then rightShoulder.Transform = CFrame.Angles(math.rad(-90) + armSway, 0, 0) end
+                -- Левая рука отведена назад-в сторону
                 if leftShoulder then leftShoulder.Transform = CFrame.Angles(math.rad(-30) - armSway, math.rad(-45), math.rad(-30)) end
+                -- Ноги вытянуты назад, слегка разведены
                 if rightHip then rightHip.Transform = CFrame.Angles(math.rad(-10) + sway * 5, 0, math.rad(-8)) end
                 if leftHip then leftHip.Transform = CFrame.Angles(math.rad(-10) - sway * 5, 0, math.rad(8)) end
                 if rightKnee then rightKnee.Transform = CFrame.Angles(math.rad(5), 0, 0) end
                 if leftKnee then leftKnee.Transform = CFrame.Angles(math.rad(5), 0, 0) end
                 if rightAnkle then rightAnkle.Transform = CFrame.Angles(math.rad(-5), 0, 0) end
                 if leftAnkle then leftAnkle.Transform = CFrame.Angles(math.rad(-5), 0, 0) end
+                -- Тело наклонено горизонтально
                 if waist then waist.Transform = CFrame.Angles(math.rad(80), 0, sway) end
+                -- Голова смотрит вперёд
                 if neck then neck.Transform = CFrame.Angles(math.rad(-80), 0, 0) end
             else
+                -- R6
                 local torso = c:FindFirstChild("Torso")
                 if torso then
                     local rightShoulder = torso:FindFirstChild("Right Shoulder")
@@ -1010,6 +1057,8 @@ flyBtn.MouseButton1Click:Connect(function()
     else
         if flyConn then flyConn:Disconnect() flyConn = nil end
         if flyPoseConn then flyPoseConn:Disconnect() flyPoseConn = nil end
+        if flyBodyVel then flyBodyVel:Destroy() flyBodyVel = nil end
+        if flyBodyGyro then flyBodyGyro:Destroy() flyBodyGyro = nil end
         if speedActive then
             humanoid.WalkSpeed = walkSpeed
         else
@@ -2190,6 +2239,8 @@ killBtn.MouseButton1Click:Connect(function()
     if sigmaPoseConn then sigmaPoseConn:Disconnect() end
     if flyConn then flyConn:Disconnect() end
     if flyPoseConn then flyPoseConn:Disconnect() end
+    if flyBodyVel then flyBodyVel:Destroy() flyBodyVel = nil end
+    if flyBodyGyro then flyBodyGyro:Destroy() flyBodyGyro = nil end
     if godModeConn then godModeConn:Disconnect() end
     if speedMaintainConn then speedMaintainConn:Disconnect() end
     if espConn then espConn:Disconnect() end
@@ -2232,6 +2283,23 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         end
         task.wait(0.3)
         addRedEyes(newChar)
+
+        -- Пересоздаём BodyVelocity и BodyGyro после респавна
+        local newRoot = newChar:FindFirstChild("HumanoidRootPart")
+        if newRoot then
+            if flyBodyVel then flyBodyVel:Destroy() end
+            flyBodyVel = Instance.new("BodyVelocity")
+            flyBodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+            flyBodyVel.Parent = newRoot
+
+            if flyBodyGyro then flyBodyGyro:Destroy() end
+            flyBodyGyro = Instance.new("BodyGyro")
+            flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+            flyBodyGyro.D = 100
+            flyBodyGyro.CFrame = newRoot.CFrame
+            flyBodyGyro.Parent = newRoot
+        end
     end
 
     if speedActive then
